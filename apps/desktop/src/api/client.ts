@@ -107,6 +107,8 @@ export const api = {
     call<Record<string, unknown>>(`/api/workspaces/${wsId}/export`,
       { method: "POST", ...json({ target_dir: targetDir }) }),
 
+  fonts: () => call<{ fonts: { family: string; origin: string }[]; count: number }>("/api/fonts"),
+
   ocrStatus: () => call<{ available: boolean; provider: string | null; detail: string }>("/api/ocr/status"),
   ocrRead: (wsId: string, bbox: BBox) =>
     call<{ lines: OcrLine[]; count: number; note: string }>(`/api/workspaces/${wsId}/ocr`,

@@ -1,7 +1,9 @@
 /** RIGHT panel: full inspector — content, style, events/bindings, data, state. */
+import { useEffect, useState } from "react";
+import { api } from "../api/client";
 import { useEditor } from "../state/editorStore";
 import { COMPONENT_TYPES } from "../types";
-import type { ComponentType } from "../types";
+import type { ComponentType, UIComponent } from "../types";
 import { BindingEditor } from "./BindingEditor";
 
 export const PRESETS: Record<string, [number, number]> = {
@@ -127,18 +129,34 @@ export function Inspector() {
         <div className="insp-section">
           <div className="insp-label">ESTILO</div>
           <div className="field-grid">
-            {styleField("background", "Fondo")}
-            {styleField("color", "Color")}
-            {styleField("fontSize", "Tamaño fuente", "number")}
-            {styleField("fontFamily", "Fuente")}
+            <label className="field color-field"><span>Color</span>
+              <span className="color-inputs">
+                <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(String(c.styles.color ?? "")) ? String(c.styles.color) : "#e8eaf0"}
+                  onChange={(e) => editor.setStyle(c.id, "color", e.target.value)} />
+                <input value={String(c.styles.color ?? "")} placeholder="#rrggbb"
+                  onChange={(e) => editor.setStyle(c.id, "color", e.target.value)} />
+              </span>
+            </label>
+            <label className="field color-field"><span>Fondo</span>
+              <span className="color-inputs">
+                <input type="color" value={/^#[0-9a-fA-F]{6}$/.test(String(c.styles.background ?? "")) ? String(c.styles.background) : "#1b2029"}
+                  onChange={(e) => editor.setStyle(c.id, "background", e.target.value)} />
+                <input value={String(c.styles.background ?? "")} placeholder="#rrggbb / transparente"
+                  onChange={(e) => editor.setStyle(c.id, "background", e.target.value)} />
+              </span>
+            </label>
             {styleField("radius", "Redondeo", "number")}
             {styleField("padding", "Relleno")}
-            {styleField("margin", "Margen")}
             {styleField("border", "Borde")}
-            {styleField("shadow", "Sombra")}
-            {styleField("opacity", "Opacidad", "number")}
+            <label className="field"><span>Opacidad %</span>
+              <input type="range" min={0} max={100}
+                value={Math.round(Number(c.styles.opacity ?? 1) * 100)}
+                onChange={(e) => editor.setStyle(c.id, "opacity", Number(e.target.value) / 100)} />
+            </label>
           </div>
         </div>
+
+        <TypographySection editor={editor} component={c} />
 
         <div className="insp-section">
           <div className="insp-label">EVENTOS</div>
@@ -157,6 +175,72 @@ export function Inspector() {
           <div className="kv"><span>source</span><code>{String(c.metadata.source ?? "?")}</code></div>
           <div className="kv"><span>confidence</span><code>{conf.toFixed(3)}</code></div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function TypographySection({ editor, component: c }: {
+  editor: ReturnType<typeof useEditor>; component: UIComponent;
+}) {
+  const [fonts, setFonts] = useState<string[]>([]);
+  useEffect(() => {
+    void api.fonts().then((r) => setFonts(r.fonts.map((f) => f.family))).catch(() => setFonts([]));
+  }, []);
+  const hasShadow = Boolean(c.styles.shadow);
+  return (
+    <div className="insp-section">
+      <div className="insp-label">TIPOGRAFÍA</div>
+      <label className="field"><span>Fuente</span>
+        <select value={String(c.styles.fontFamily ?? "")}
+          onChange={(e) => editor.setStyle(c.id, "fontFamily", e.target.value || null)}>
+          <option value="">(predeterminada)</option>
+          {fonts.map((f) => <option key={f} value={f}
+            style={{ fontFamily: f }}>{f}</option>)}
+        </select>
+      </label>
+      <div className="field-grid">
+        <label className="field"><span>Tamaño</span>
+          <input type="number" value={String(c.styles.fontSize ?? "")} placeholder="px"
+            onChange={(e) => editor.setStyle(c.id, "fontSize", e.target.value ? Number(e.target.value) : null)} />
+        </label>
+        <label className="field"><span>Peso</span>
+          <select value={String(c.styles.fontWeight ?? "")}
+            onChange={(e) => editor.setStyle(c.id, "fontWeight", e.target.value || null)}>
+            <option value="">normal</option>
+            {[300, 400, 500, 600, 700, 800].map((w) => <option key={w} value={w}>{w}</option>)}
+          </select>
+        </label>
+        <label className="field"><span>Estilo</span>
+          <select value={String(c.styles.fontStyle ?? "")}
+            onChange={(e) => editor.setStyle(c.id, "fontStyle", e.target.value || null)}>
+            <option value="">normal</option>
+            <option value="italic">cursiva</option>
+          </select>
+        </label>
+        <label className="field"><span>Alineación</span>
+          <select value={String(c.styles.textAlign ?? "")}
+            onChange={(e) => editor.setStyle(c.id, "textAlign", e.target.value || null)}>
+            <option value="">izquierda</option>
+            <option value="center">centro</option>
+            <option value="right">derecha</option>
+          </select>
+        </label>
+      </div>
+      <div className="field">
+        <span>Sombra de texto</span>
+        <span className="color-inputs">
+          <input type="checkbox" checked={hasShadow}
+            onChange={(e) => editor.setStyle(c.id, "shadow",
+              e.target.checked ? "0 2px 8px #000000cc" : null)} />
+          <input type="color" value={(() => {
+            const tail = String(c.styles.shadow ?? "").split(" ").pop() ?? "";
+            return /^#[0-9a-fA-F]{6}$/.test(tail) ? tail : "#000000";
+          })()}
+            disabled={!hasShadow}
+            onChange={(e) => editor.setStyle(c.id, "shadow", `0 2px 8px ${e.target.value}`)} />
+          <span className="dim">{hasShadow ? "activada" : "sin sombra"}</span>
+        </span>
       </div>
     </div>
   );

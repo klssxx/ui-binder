@@ -91,6 +91,11 @@ def _style_of(comp: dict[str, Any]) -> str:
         parts.append(f"color: '{s['color']}'")
     if s.get("fontSize"):
         parts.append(f"fontSize: '{s['fontSize']}'")
+    for key in ("fontFamily", "fontWeight", "fontStyle", "textAlign", "shadow"):
+        if s.get(key):
+            parts.append(f"{key if key != 'shadow' else 'textShadow'}: '{s[key]}'")
+    if s.get("opacity") is not None:
+        parts.append(f"opacity: {s['opacity']}")
     if s.get("radius"):
         parts.append(f"borderRadius: '{s['radius']}px'")
     if s.get("padding"):

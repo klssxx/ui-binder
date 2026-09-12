@@ -443,6 +443,11 @@ function CanvasNode({ component: c, liveBox, editingId, setEditingId, onStartMov
     background: typeof c.styles.background === "string" ? c.styles.background : undefined,
     color: typeof c.styles.color === "string" ? c.styles.color : undefined,
     fontSize: c.styles.fontSize ? Number(c.styles.fontSize) : undefined,
+    fontFamily: typeof c.styles.fontFamily === "string" ? c.styles.fontFamily : undefined,
+    fontWeight: c.styles.fontWeight != null ? Number(c.styles.fontWeight) : undefined,
+    fontStyle: typeof c.styles.fontStyle === "string" ? c.styles.fontStyle : undefined,
+    textAlign: typeof c.styles.textAlign === "string" ? c.styles.textAlign as React.CSSProperties["textAlign"] : undefined,
+    textShadow: typeof c.styles.shadow === "string" ? c.styles.shadow : undefined,
     borderRadius: c.styles.radius ? Number(c.styles.radius) : undefined,
     opacity: c.styles.opacity != null ? Number(c.styles.opacity) : undefined,
   };
@@ -469,7 +474,12 @@ function CanvasNode({ component: c, liveBox, editingId, setEditingId, onStartMov
             e.stopPropagation();
           }} />
       ) : (
-        c.text && <span className="node-text">{c.text}</span>
+        c.text && (
+          <span className="node-text" style={{
+            width: "100%", display: "block", overflow: "hidden",
+            textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>{c.text}</span>
+        )
       )}
       {c.bindings.length > 0 && (
         <span className="node-binding-dot" title={`${c.bindings.length} binding(s)`} />

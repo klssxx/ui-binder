@@ -383,6 +383,15 @@ code, .mono { font-family: var(--mono); font-size: 11px; }
 .overlay-transparent { background: #0003; }
 .type-popover { position: fixed; top: 18vh; }
 
+/* tipografía (F4) */
+.color-field .color-inputs, .field .color-inputs {
+  display: flex; align-items: center; gap: 6px;
+}
+.color-inputs input[type="color"] {
+  width: 34px; height: 26px; padding: 1px; cursor: pointer; flex-shrink: 0;
+}
+.color-inputs input[type="text"], .color-inputs input:not([type]) { flex: 1; }
+
 /* OCR (F3) */
 .ocr-line {
   display: flex; align-items: center; gap: 8px; padding: 3px 0;
