@@ -189,3 +189,11 @@ export interface SpecItem {
   type: ComponentType;
   mounted_component_id?: string | null;
 }
+
+export interface OcrLine {
+  text: string;
+  bbox: BBox;
+  confidence: number;
+  color: string;
+  fontSize: number;
+}

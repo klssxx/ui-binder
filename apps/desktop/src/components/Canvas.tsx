@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useEditor } from "../state/editorStore";
-import type { BBox, UIComponent } from "../types";
+import type { BBox, OcrLine, UIComponent } from "../types";
 
 const TEXT_TYPES = new Set(["text", "heading", "button", "input", "textarea", "select"]);
 const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
@@ -40,8 +40,9 @@ export function liveResize(origin: BBox, handle: string, dx: number, dy: number)
   return { x, y, width, height };
 }
 
-export function Canvas({ reference }: {
+export function Canvas({ reference, onReferenceChange }: {
   reference: { id: string; width: number; height: number } | null;
+  onReferenceChange?: (img: { id: string; width: number; height: number }) => void;
 }) {
   const editor = useEditor();
   const { doc } = editor.state;
@@ -229,7 +230,8 @@ export function Canvas({ reference }: {
           </div>
         </div>
         {pending && (
-          <TypePopover pending={pending} onCancel={() => setPending(null)}
+          <TypePopover pending={pending} wsId={editor.state.workspace?.id ?? null}
+            onReferenceChange={onReferenceChange} onCancel={() => setPending(null)}
             onCreate={(type) => {
               const id = editor.addComponent(type, "screen", pending.bbox);
               editor.updateComponent(id, {
@@ -283,7 +285,8 @@ export function Canvas({ reference }: {
         ))}
       </div>
       {pending && (
-        <TypePopover pending={pending} onCancel={() => setPending(null)}
+        <TypePopover pending={pending} wsId={editor.state.workspace?.id ?? null}
+            onReferenceChange={onReferenceChange} onCancel={() => setPending(null)}
           onCreate={(type) => {
             const parent = smallestContainer(pending.bbox);
             const id = editor.addComponent(type, parent ?? "screen", pending.bbox);
@@ -300,12 +303,57 @@ export function Canvas({ reference }: {
   );
 }
 
-function TypePopover({ pending, onCreate, onCancel }: {
+function TypePopover({ pending, onCancel, onCreate, wsId, onReferenceChange }: {
   pending: { bbox: BBox; lasso?: { x: number; y: number }[] };
-  onCreate: (type: UIComponent["type"]) => void;
   onCancel: () => void;
+  onCreate: (type: UIComponent["type"]) => void;
+  wsId: string | null;
+  onReferenceChange?: (img: { id: string; width: number; height: number }) => void;
 }) {
+  const editor = useEditor();
   const [type, setType] = useState<UIComponent["type"]>("button");
+  const [ocrLines, setOcrLines] = useState<OcrLine[] | null>(null);
+  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [eraseToo, setEraseToo] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const readOcr = async () => {
+    if (!wsId) return;
+    setBusy("Leyendo texto…"); setError(null);
+    try {
+      const r = await api.ocrRead(wsId, pending.bbox);
+      setOcrLines(r.lines);
+      setPicked(new Set(r.lines.map((_, i) => i)));
+    } catch (e) {
+      setError(String((e as { message?: string }).message ?? e));
+    } finally { setBusy(null); }
+  };
+
+  const createTextComponents = async () => {
+    if (!ocrLines) return;
+    const chosen = ocrLines.filter((_, i) => picked.has(i));
+    for (const line of chosen) {
+      const id = editor.addComponent(
+        line.fontSize >= 26 ? "heading" : "text", "screen", line.bbox);
+      editor.updateComponent(id, {
+        text: line.text,
+        styles: { color: line.color, fontSize: line.fontSize },
+        metadata: { confidence: line.confidence, source: "ocr" },
+      });
+    }
+    if (eraseToo && chosen.length > 0 && wsId) {
+      setBusy("Borrando el original…");
+      try {
+        const r = await api.ocrErase(wsId, chosen.map((l) => l.bbox));
+        onReferenceChange?.({ id: r.image.id, width: r.image.width, height: r.image.height });
+      } catch (e) {
+        setError(`Textos creados, pero el borrado falló: ${String((e as { message?: string }).message ?? e)}`);
+      } finally { setBusy(null); }
+    }
+    onCancel();
+  };
+
   return (
     <div className="overlay overlay-transparent" onPointerDown={onCancel}>
       <div className="modal modal-small type-popover" onPointerDown={(e) => e.stopPropagation()}>
@@ -315,15 +363,60 @@ function TypePopover({ pending, onCreate, onCancel }: {
             en ({Math.round(pending.bbox.x)}, {Math.round(pending.bbox.y)})
             {pending.lasso ? " · lazo libre" : " · recuadro"}</code>
         </div>
-        <label className="field"><span>Tipo</span>
-          <select value={type} onChange={(e) => setType(e.target.value as UIComponent["type"])}>
-            {POPOVER_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
-          </select>
-        </label>
-        <div className="form-actions">
-          <button className="btn-mini btn-primary" onClick={() => onCreate(type)}>Crear</button>
-          <button className="btn-mini" onClick={onCancel}>Cancelar</button>
-        </div>
+
+        {ocrLines === null ? (
+          <>
+            <label className="field"><span>Tipo</span>
+              <select value={type} onChange={(e) => setType(e.target.value as UIComponent["type"])}>
+                {POPOVER_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
+              </select>
+            </label>
+            <button className="btn btn-secondary btn-block" disabled={!wsId || !!busy}
+              onClick={() => void readOcr()}>
+              {busy ?? "Leer el texto de esta zona (OCR)"}
+            </button>
+            {!wsId && <p className="hint">Abre un workspace para usar el OCR.</p>}
+            <div className="form-actions">
+              <button className="btn-mini btn-primary" onClick={() => onCreate(type)}>Crear</button>
+              <button className="btn-mini" onClick={onCancel}>Cancelar</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="insp-label">TEXTO ENCONTRADO ({ocrLines.length})</div>
+            {ocrLines.length === 0 && (
+              <p className="hint">El OCR no encontró texto en la zona. Vuelve atrás y crea el componente a mano.</p>
+            )}
+            {ocrLines.map((line, i) => (
+              <label key={i} className="ocr-line">
+                <input type="checkbox" checked={picked.has(i)}
+                  onChange={(e) => setPicked((s) => {
+                    const n = new Set(s);
+                    if (e.target.checked) n.add(i); else n.delete(i);
+                    return n;
+                  })} />
+                <span style={{ color: line.color }}>{line.text}</span>
+                <span className="dim">{Math.round(line.confidence * 100)}% · {line.fontSize}px</span>
+              </label>
+            ))}
+            {ocrLines.length > 0 && (
+              <label className="ocr-line">
+                <input type="checkbox" checked={eraseToo}
+                  onChange={(e) => setEraseToo(e.target.checked)} />
+                <span>Borrar el texto original de la imagen (inpainting)</span>
+              </label>
+            )}
+            {error && <div className="error-note">{error}</div>}
+            <div className="form-actions">
+              <button className="btn-mini btn-primary" disabled={!!busy || picked.size === 0}
+                onClick={() => void createTextComponents()}>
+                {busy ?? `Crear ${picked.size} texto(s)`}
+              </button>
+              <button className="btn-mini" disabled={!!busy} onClick={() => setOcrLines(null)}>Atrás</button>
+              <button className="btn-mini" onClick={onCancel}>Cancelar</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

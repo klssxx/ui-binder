@@ -3,7 +3,7 @@
 import type {
   Binding, Capability, DiffMetrics, Health, ImageRecord, LogEntry, Mapping,
   OrphanReport, ProjectInfo, Suggestion, TraceEvent, UIDocument, VerifyReport,
-  Workspace,
+  Workspace, OcrLine, BBox,
 } from "../types";
 
 const BASE: string =
@@ -106,6 +106,14 @@ export const api = {
   exportProject: (wsId: string, targetDir: string) =>
     call<Record<string, unknown>>(`/api/workspaces/${wsId}/export`,
       { method: "POST", ...json({ target_dir: targetDir }) }),
+
+  ocrStatus: () => call<{ available: boolean; provider: string | null; detail: string }>("/api/ocr/status"),
+  ocrRead: (wsId: string, bbox: BBox) =>
+    call<{ lines: OcrLine[]; count: number; note: string }>(`/api/workspaces/${wsId}/ocr`,
+      { method: "POST", ...json({ bbox }) }),
+  ocrErase: (wsId: string, bboxes: BBox[]) =>
+    call<{ image: ImageRecord; erased_boxes: number }>(`/api/workspaces/${wsId}/ocr/erase`,
+      { method: "POST", ...json({ bboxes }) }),
 
   specSuggest: (wsId: string, item: { name: string; description: string; type: string }) =>
     call<{ suggestions: Suggestion[] }>(`/api/workspaces/${wsId}/spec/suggest`,

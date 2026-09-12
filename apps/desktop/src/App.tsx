@@ -250,7 +250,7 @@ function Shell() {
         <div className="center">
           {showPreview
             ? <PreviewPane onClose={() => setShowPreview(false)} />
-            : <Canvas reference={reference} />}
+            : <Canvas reference={reference} onReferenceChange={setReference} />}
         </div>
         <Splitter direction="x" onDelta={(d) => setInspW((w) => Math.min(460, Math.max(200, w - d)))} />
         <div style={{ width: inspW, flexShrink: 0, display: "flex" }}><Inspector /></div>

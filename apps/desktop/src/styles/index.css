@@ -383,6 +383,13 @@ code, .mono { font-family: var(--mono); font-size: 11px; }
 .overlay-transparent { background: #0003; }
 .type-popover { position: fixed; top: 18vh; }
 
+/* OCR (F3) */
+.ocr-line {
+  display: flex; align-items: center; gap: 8px; padding: 3px 0;
+  font-size: 12px; cursor: pointer;
+}
+.ocr-line .dim { margin-left: auto; font-size: 10px; }
+
 /* SPEC (F1) */
 .spec-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .spec-form input:nth-child(1) { width: 220px; }
