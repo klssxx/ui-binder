@@ -93,3 +93,31 @@ def test_export_refuses_inside_source_project(tmp_path):
         raise AssertionError("should have refused")
     except ValueError as e:
         assert "solaparse" in str(e)
+
+
+def test_export_projects_strokes_to_svg(tmp_path):
+    from backend.schema.ui_schema import Stroke
+    d = doc()
+    d.strokes = [
+        Stroke(id="s1", tool="pencil", color="#ff0000", width=3, opacity=1,
+               points=[{"x": 1, "y": 2}, {"x": 5, "y": 6}, {"x": 9, "y": 2}]),
+        Stroke(id="s2", tool="rect", color="#00ff00", width=2, opacity=1,
+               points=[{"x": 0, "y": 0}, {"x": 40, "y": 20}]),
+        Stroke(id="s3", tool="arrow", color="#0000ff", width=4, opacity=1,
+               points=[{"x": 0, "y": 0}, {"x": 30, "y": 30}]),
+    ]
+    target = tmp_path / "with-strokes"
+    export_react_project(d, [], [], None, target)
+    app = (target / "src" / "App.tsx").read_text(encoding="utf-8")
+    assert "uib-strokes" in app
+    assert "<path" in app and "<rect" in app and "<line" in app
+    assert "#ff0000" in app
+
+
+def test_schema_strokes_roundtrip():
+    from backend.schema.ui_schema import Stroke, UIDocument
+    d = doc()
+    d.strokes = [Stroke(id="s", tool="ellipse", points=[{"x": 0, "y": 0}, {"x": 1, "y": 1}])]
+    rebuilt = UIDocument.model_validate(d.model_dump())
+    assert rebuilt.strokes and rebuilt.strokes[0].tool == "ellipse"
+    assert rebuilt.validate_structure() == []

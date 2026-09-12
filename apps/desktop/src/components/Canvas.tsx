@@ -4,7 +4,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useEditor } from "../state/editorStore";
-import type { BBox, OcrLine, UIComponent } from "../types";
+import type { BBox, OcrLine, Stroke, StrokePoint, UIComponent } from "../types";
+import { StrokeLayer, strokeSvg } from "./StrokeLayer";
 
 const TEXT_TYPES = new Set(["text", "heading", "button", "input", "textarea", "select"]);
 const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
@@ -12,7 +13,8 @@ const CONTAINER_TYPES = ["container", "panel", "card", "sidebar", "navbar", "mod
 const POPOVER_TYPES = ["button", "input", "textarea", "text", "heading", "panel", "card",
   "container", "image", "icon", "select", "checkbox", "radio", "table", "chart", "divider", "custom"];
 
-export type Tool = "select" | "rect" | "lasso";
+export type Tool = "select" | "rect" | "lasso" | "pencil" | "eraser"
+  | "shape-rect" | "shape-ellipse" | "shape-line" | "shape-arrow";
 
 interface Selection {
   kind: "rect" | "lasso";
@@ -56,9 +58,13 @@ export function Canvas({ reference, onReferenceChange }: {
   const [tool, setTool] = useState<Tool>("select");
   const [selection, setSelection] = useState<Selection | null>(null);
   const [pending, setPending] = useState<{ bbox: BBox; lasso?: { x: number; y: number }[] } | null>(null);
+  const [drawPoints, setDrawPoints] = useState<StrokePoint[] | null>(null);
+  const [penColor, setPenColor] = useState("#4f8cff");
+  const [penWidth, setPenWidth] = useState(4);
 
   const stageW = doc?.screen.width ?? reference?.width ?? 1280;
   const stageH = doc?.screen.height ?? reference?.height ?? 800;
+  const allStrokes = doc?.strokes ?? [];
 
   useLayoutEffect(() => {
     const el = viewportRef.current;
@@ -88,6 +94,37 @@ export function Canvas({ reference, onReferenceChange }: {
       }
     }
     return best;
+  };
+
+  const isDrawTool = (tl: Tool) =>
+    tl === "pencil" || tl === "shape-rect" || tl === "shape-ellipse"
+    || tl === "shape-line" || tl === "shape-arrow";
+
+  const finishDrawing = useCallback(() => {
+    setDrawPoints((pts) => {
+      if (pts && pts.length >= 2) {
+        const toolMap: Record<string, Stroke["tool"]> = {
+          "shape-rect": "rect", "shape-ellipse": "ellipse",
+          "shape-line": "line", "shape-arrow": "arrow",
+        };
+        const strokeTool = toolMap[tool] ?? "pencil";
+        const trimmed = strokeTool === "pencil" && pts.length < 3 ? null : pts;
+        if (trimmed) {
+          editor.addStroke({
+            id: `stroke_${Date.now().toString(36)}`,
+            tool: strokeTool, color: penColor, width: penWidth, opacity: 1,
+            points: trimmed,
+          });
+        }
+      }
+      return null;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool, penColor, penWidth]);
+
+  const eraseAt = (e: React.PointerEvent | PointerEvent) => {
+    const p = toStage(e);
+    editor.eraseStrokesNear(p.x, p.y, 14 / zoom + 4);
   };
 
   const finishSelection = useCallback(() => {
@@ -145,6 +182,39 @@ export function Canvas({ reference, onReferenceChange }: {
   }, [selection, zoom, finishSelection]);
 
   useEffect(() => {
+    if (!drawPoints) return;
+    const onMove = (e: PointerEvent) => {
+      const p = toStage(e);
+      setDrawPoints((pts) => {
+        if (!pts) return pts;
+        const last = pts[pts.length - 1];
+        if (tool !== "pencil" || Math.hypot(p.x - last.x, p.y - last.y) > 2) {
+          return tool === "pencil" ? [...pts, p] : [pts[0], p];
+        }
+        return pts;
+      });
+    };
+    const onUp = () => finishDrawing();
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawPoints, tool, zoom, finishDrawing]);
+
+  useEffect(() => {
+    if (tool !== "eraser") return;
+    const onMove = (e: PointerEvent) => {
+      if (e.buttons === 1) eraseAt(e);
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool, zoom]);
+
+  useEffect(() => {
     if (!drag) return;
     const onMove = (e: PointerEvent) => {
       const dx = (e.clientX - drag.startX) / zoom;
@@ -163,6 +233,14 @@ export function Canvas({ reference, onReferenceChange }: {
   const startSelection = (e: React.PointerEvent) => {
     if (tool === "select" || e.button !== 0) return;
     const p = toStage(e);
+    if (isDrawTool(tool)) {
+      setDrawPoints([p, p]);
+      return;
+    }
+    if (tool === "eraser") {
+      eraseAt(e);
+      return;
+    }
     setSelection({ kind: tool, x0: p.x, y0: p.y, x1: p.x, y1: p.y, points: [p] });
   };
 
@@ -192,6 +270,27 @@ export function Canvas({ reference, onReferenceChange }: {
         <button key={tl} className={`tool-palette-btn ${tool === tl ? "tool-palette-active" : ""}`}
           title={title} onClick={() => setTool(tl)}>{icon}</button>
       ))}
+      <div className="tool-palette-sep" />
+      {([
+        ["pencil", "✏", "Lápiz: dibuja a mano alzada"],
+        ["eraser", "⌫", "Borrador: arrastra sobre un trazo para eliminarlo"],
+        ["shape-rect", "▭", "Rectángulo"],
+        ["shape-ellipse", "◯", "Elipse"],
+        ["shape-line", "／", "Línea"],
+        ["shape-arrow", "→", "Flecha"],
+      ] as [Tool, string, string][]).map(([tl, icon, title]) => (
+        <button key={tl} className={`tool-palette-btn ${tool === tl ? "tool-palette-active" : ""}`}
+          title={title} onClick={() => setTool(tl)}>{icon}</button>
+      ))}
+      <div className="tool-palette-sep" />
+      <input type="color" className="tool-palette-color" value={penColor}
+        title="Color del trazo" onChange={(e) => setPenColor(e.target.value)} />
+      <select className="tool-palette-width" value={penWidth}
+        title="Grosor del trazo" onChange={(e) => setPenWidth(Number(e.target.value))}>
+        {[2, 4, 8, 14, 24].map((w) => <option key={w} value={w}>{w}px</option>)}
+      </select>
+      <button className="tool-palette-btn" title="Borrar todos los trazos"
+        onClick={() => editor.clearStrokes()}>🗑</button>
     </div>
   );
 
@@ -223,6 +322,17 @@ export function Canvas({ reference, onReferenceChange }: {
               alt="imagen de referencia" draggable={false} style={{ opacity: 1 }} />
           )}
           {selectionOverlay}
+          {drawPoints && (
+            <svg className="strokes-layer" width={stageW} height={stageH}>
+              {strokeSvg({
+                id: "preview", tool: tool === "pencil" ? "pencil"
+                  : tool === "shape-rect" ? "rect" : tool === "shape-ellipse" ? "ellipse"
+                  : tool === "shape-arrow" ? "arrow" : "line",
+                color: penColor, width: penWidth, opacity: 0.8, points: drawPoints,
+              })}
+            </svg>
+          )}
+          <StrokeLayer strokes={allStrokes} width={stageW} height={stageH} />
           <div className="canvas-empty-overlay">
             <h2>Imagen importada — sin reconstruir</h2>
             <p>Pulsa <strong>ANALIZAR UI</strong> para detectar componentes, o usa
@@ -268,6 +378,17 @@ export function Canvas({ reference, onReferenceChange }: {
           <img className="canvas-reference" src={referenceUrl} alt="imagen de referencia" draggable={false} />
         )}
         {selectionOverlay}
+        {drawPoints && (
+          <svg className="strokes-layer" width={stageW} height={stageH}>
+            {strokeSvg({
+              id: "preview", tool: tool === "pencil" ? "pencil"
+                : tool === "shape-rect" ? "rect" : tool === "shape-ellipse" ? "ellipse"
+                : tool === "shape-arrow" ? "arrow" : "line",
+              color: penColor, width: penWidth, opacity: 0.8, points: drawPoints,
+            })}
+          </svg>
+        )}
+        <StrokeLayer strokes={allStrokes} width={stageW} height={stageH} />
         {editor.childrenOf("screen").map((c) => (
           <CanvasNode key={c.id} component={c} liveBox={liveBox} editingId={editingId}
             setEditingId={setEditingId}

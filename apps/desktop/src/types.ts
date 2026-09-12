@@ -36,10 +36,21 @@ export interface Screen {
   preset: string | null;
 }
 
+export interface StrokePoint { x: number; y: number; }
+export interface Stroke {
+  id: string;
+  tool: "pencil" | "rect" | "ellipse" | "line" | "arrow";
+  color: string;
+  width: number;
+  opacity: number;
+  points: StrokePoint[];
+}
+
 export interface UIDocument {
   ui_schema_version: number;
   screen: Screen;
   components: UIComponent[];
+  strokes?: Stroke[];
   metadata: Record<string, unknown>;
 }
 

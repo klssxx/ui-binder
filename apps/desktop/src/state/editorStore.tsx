@@ -1,7 +1,7 @@
 /** Editor state: current workspace, UI document, selection, undo/redo history.
  *  Plain React context + useReducer — no external state library. */
 import { createContext, useCallback, useContext, useMemo, useReducer, useRef } from "react";
-import type { BBox, UIComponent, UIDocument, Workspace } from "../types";
+import type { BBox, Stroke, UIComponent, UIDocument, Workspace } from "../types";
 
 const HISTORY_LIMIT = 60;
 
@@ -25,7 +25,8 @@ type Action =
   | { type: "redo" }
   | { type: "saved"; version: number }
   | { type: "screen"; screen: UIDocument["screen"] }
-  | { type: "metadata"; metadata: Record<string, unknown> };
+  | { type: "metadata"; metadata: Record<string, unknown> }
+  | { type: "strokes"; update: (strokes: Stroke[]) => Stroke[] };
 
 function reducer(state: EditorState, action: Action): EditorState {
   switch (action.type) {
@@ -89,6 +90,14 @@ function reducer(state: EditorState, action: Action): EditorState {
         past: [...state.past, state.doc].slice(-HISTORY_LIMIT),
         future: [], dirty: true,
       };
+    case "strokes":
+      if (!state.doc) return state;
+      return {
+        ...state,
+        doc: { ...state.doc, strokes: action.update(state.doc.strokes ?? []) },
+        past: [...state.past, state.doc].slice(-HISTORY_LIMIT),
+        future: [], dirty: true,
+      };
     case "metadata":
       if (!state.doc) return state;
       return {
@@ -121,6 +130,9 @@ export interface EditorApi {
   markSaved(version: number): void;
   setScreen(width: number, height: number, preset: string | null): void;
   patchMetadata(partial: Record<string, unknown>): void;
+  addStroke(stroke: Stroke): void;
+  eraseStrokesNear(x: number, y: number, radiusPx: number): number;
+  clearStrokes(): void;
   selected(): UIComponent | null;
   byId(id: string): UIComponent | undefined;
   childrenOf(parentId: string): UIComponent[];
@@ -128,6 +140,18 @@ export interface EditorApi {
 }
 
 const EditorContext = createContext<EditorApi | null>(null);
+
+function strokeHit(s: Stroke, x: number, y: number, radius: number): boolean {
+  if (s.tool === "pencil") {
+    return s.points.some((p) => (p.x - x) ** 2 + (p.y - y) ** 2 <= radius * radius);
+  }
+  const [a, b] = [s.points[0], s.points[s.points.length - 1]];
+  if (!a || !b) return false;
+  const inside = (p: { x: number; y: number }) =>
+    p.x >= Math.min(a.x, b.x) - radius && p.x <= Math.max(a.x, b.x) + radius
+    && p.y >= Math.min(a.y, b.y) - radius && p.y <= Math.max(a.y, b.y) + radius;
+  return inside({ x, y });
+}
 
 export function EditorProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, {
@@ -143,6 +167,10 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
 
   const mutate = useCallback((next: Parameters<Action extends never ? never : EditorApi["mutate"]>[0]) => {
     dispatch({ type: "mutate", next });
+  }, []);
+
+  const mutateStrokes = useCallback((update: (strokes: Stroke[]) => Stroke[]) => {
+    dispatch({ type: "strokes", update });
   }, []);
 
   const apiImpl = useMemo<EditorApi>(() => {
@@ -255,6 +283,13 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
           id: "screen", width: 1280, height: 800, background: null, preset: null,
         } as UIDocument["screen"])), width, height, preset } }),
       patchMetadata: (partial) => dispatch({ type: "metadata", metadata: partial }),
+      addStroke: (stroke) => mutateStrokes((list) => [...list, stroke]),
+      eraseStrokesNear: (x, y, radiusPx) => {
+        const before = state.doc?.strokes?.length ?? 0;
+        mutateStrokes((list) => list.filter((s) => !strokeHit(s, x, y, radiusPx)));
+        return before - (state.doc?.strokes?.length ?? 0);
+      },
+      clearStrokes: () => mutateStrokes(() => []),
       selected: () =>
         (state.doc?.components ?? []).find((c) => c.id === state.selectedId) ?? null,
       byId: (id) => find(state.doc?.components ?? [], id),

@@ -117,7 +117,42 @@ _ELEMENT = {
 _VOID = {"img", "hr", "input"}
 
 
+def _stroke_svg(stroke: dict[str, Any]) -> str:
+    """Un trazo → elemento SVG (mismo modelo en lienzo y export)."""
+    pts = stroke.get("points", [])
+    if not pts:
+        return ""
+    common = (f'stroke="{stroke.get("color", "#4f8cff")}" '
+              f'stroke-width="{stroke.get("width", 4)}" '
+              f'fill="none" opacity="{stroke.get("opacity", 1)}" '
+              f'stroke-linecap="round" stroke-linejoin="round"')
+    tool = stroke.get("tool", "pencil")
+    if tool == "pencil":
+        d = "M " + " L ".join(f'{p["x"]:g} {p["y"]:g}' for p in pts)
+        return f'<path d="{d}" {common} />'
+    a, b = pts[0], pts[-1]
+    x, y = min(a["x"], b["x"]), min(a["y"], b["y"])
+    w, h = abs(b["x"] - a["x"]), abs(b["y"] - a["y"])
+    if tool == "rect":
+        return f'<rect x="{x:g}" y="{y:g}" width="{w:g}" height="{h:g}" {common} />'
+    if tool == "ellipse":
+        return (f'<ellipse cx="{x + w / 2:g}" cy="{y + h / 2:g}" rx="{w / 2:g}" '
+                f'ry="{h / 2:g}" {common} />')
+    if tool == "arrow":
+        import math
+        ang = math.atan2(b["y"] - a["y"], b["x"] - a["x"])
+        size = max(10.0, float(stroke.get("width", 4)) * 3)
+        lx, ly = b["x"] - size * math.cos(ang - 0.5), b["y"] - size * math.sin(ang - 0.5)
+        rx, ry = b["x"] - size * math.cos(ang + 0.5), b["y"] - size * math.sin(ang + 0.5)
+        return (f'<line x1="{a["x"]:g}" y1="{a["y"]:g}" x2="{b["x"]:g}" y2="{b["y"]:g}" {common} />'
+                f'<path d="M {b["x"]:g} {b["y"]:g} L {lx:g} {ly:g} M {b["x"]:g} {b["y"]:g} '
+                f'L {rx:g} {ry:g}" {common} />')
+    return f'<line x1="{a["x"]:g}" y1="{a["y"]:g}" x2="{b["x"]:g}" y2="{b["y"]:g}" {common} />'
+
+
 def _generate_code(document: UIDocument, bindings: list[dict[str, Any]]) -> tuple[str, str]:
+    strokes_svg = [_stroke_svg(s.model_dump() if hasattr(s, "model_dump") else s)
+                   for s in getattr(document, "strokes", [])]
     comps = {c.id: c.model_dump() for c in document.components}
     children = {"screen": [cid for cid, c in comps.items() if c["parent_id"] in (None, "screen")]}
     for cid, c in comps.items():
@@ -229,6 +264,10 @@ def _generate_code(document: UIDocument, bindings: list[dict[str, Any]]) -> tupl
 
     lines.append("  return (")
     lines.append(f'    <div className="uib-screen" style={{{{ width: {document.screen.width:g}, height: {document.screen.height:g} }}}}>')
+    if strokes_svg:
+        lines.append(f'      <svg className="uib-strokes" width={document.screen.width:g} height={document.screen.height:g}>')
+        lines += [f"        {el}" for el in strokes_svg]
+        lines.append("      </svg>")
     lines += _render_children("screen", comps, children, handlers, state_vars, bindings, 3)
     lines.append("    </div>")
     lines.append("  );"
@@ -311,6 +350,7 @@ def _styles_css(vars_: dict[str, str]) -> str:
         "* { margin: 0; box-sizing: border-box; }",
         "body { font-family: system-ui, sans-serif; background: #101216; }",
         ".uib-screen { position: relative; overflow: hidden; margin: 0 auto; background: var(--color-background, #101216); }",
+        ".uib-strokes { position: absolute; left: 0; top: 0; pointer-events: none; }",
         "button { cursor: pointer; border: none; }",
         "button:disabled { opacity: 0.6; cursor: wait; }",
         "",

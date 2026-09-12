@@ -74,10 +74,21 @@ class Screen(BaseModel):
     preset: Optional[str] = None  # responsive preset used for the canvas
 
 
+class Stroke(BaseModel):
+    """Trazo de la capa de dibujo (F5). Vive en el documento versionado."""
+    id: str
+    tool: Literal["pencil", "rect", "ellipse", "line", "arrow"] = "pencil"
+    color: str = "#4f8cff"
+    width: float = 4
+    opacity: float = 1.0
+    points: list[dict[str, float]] = Field(default_factory=list)  # pencil: N; formas: 2
+
+
 class UIDocument(BaseModel):
     ui_schema_version: int = UI_SCHEMA_VERSION
     screen: Screen
     components: list[Component] = Field(default_factory=list)
+    strokes: list[Stroke] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     def by_id(self) -> dict[str, Component]:

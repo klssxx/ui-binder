@@ -383,6 +383,15 @@ code, .mono { font-family: var(--mono); font-size: 11px; }
 .overlay-transparent { background: #0003; }
 .type-popover { position: fixed; top: 18vh; }
 
+/* dibujo (F5) */
+.strokes-layer { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 50; }
+.tool-palette-sep { height: 1px; background: var(--line); margin: 2px 0; }
+.tool-palette-color {
+  width: 30px; height: 24px; padding: 1px; border: 1px solid var(--line);
+  border-radius: 5px; background: var(--bg0); cursor: pointer;
+}
+.tool-palette-width { font-size: 10px; padding: 2px; width: 44px; }
+
 /* tipografía (F4) */
 .color-field .color-inputs, .field .color-inputs {
   display: flex; align-items: center; gap: 6px;
