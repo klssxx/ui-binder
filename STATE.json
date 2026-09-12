@@ -1,12 +1,13 @@
 {
   "phase": "ROADMAP_DONE",
-  "task": "v0.1.0 delivered",
+  "task": "v0.1.0 delivered (relocado a INTERESANTE/UIEDITION)",
   "status": "COMPLETE",
   "last_good_state": {
-    "commit": "see git log (final commit)",
-    "tests": "75 passed (pytest) + 6 passed (vitest) + adversarial QA 11/11",
+    "commit": "3941676 (docs: nueva raíz)",
+    "root": "C:/Users/KLSX/Music/INTERESANTE/UIEDITION",
+    "tests": "75 passed (pytest desde nueva raíz) + 6 passed (vitest) + adversarial QA 11/11",
     "typecheck": "tsc exit 0",
-    "build": "vite build exit 0; PyInstaller exe rebuilt post-fix, smoke exit 0"
+    "build": "vite build exit 0; PyInstaller exe smoke exit 0"
   },
   "tests": {
     "pytest": "75 passed, exit 0",
