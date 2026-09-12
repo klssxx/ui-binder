@@ -1,0 +1,14 @@
+{
+  "name": "@uibinder/project-analyzer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Real-AST JS/TS analyzer used by the UI Binder backend via a Node bridge.",
+  "bin": {
+    "analyze": "./analyze.mjs"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.25.0",
+    "@babel/traverse": "^7.25.0"
+  }
+}

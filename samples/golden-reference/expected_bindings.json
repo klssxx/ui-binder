@@ -1,0 +1,7 @@
+{
+  "$comment": "Smart Binder expectations: a 'Generar' button must bind to POST /api/generate with high confidence.",
+  "component_type": "button",
+  "component_text": "Generar",
+  "must_target_route": { "method": "POST", "path": "/api/generate" },
+  "min_score": 0.6
+}

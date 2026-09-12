@@ -1,0 +1,29 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.pytest_tmp/
+.coverage
+
+# Node
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# Rust / Tauri
+target/
+
+# Local data (workspaces, DB, logs, uploads)
+data/
+*.log
+
+# Env & secrets
+.env
+
+# OS / editor
+Thumbs.db
+.DS_Store
+.idea/
+.vscode/

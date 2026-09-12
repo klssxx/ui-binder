@@ -1,0 +1,24 @@
+{
+  "phase": "ROADMAP_CANDIDATE",
+  "task": "final adversarial review (qa-win) + final report",
+  "status": "IN_PROGRESS",
+  "last_good_state": {
+    "tests": "74 passed (pytest) + 6 passed (vitest)",
+    "typecheck": "tsc exit 0",
+    "build": "vite build exit 0; PyInstaller dist/UIBinder/UIBinder.exe smoke exit 0",
+    "committed": "pending final commit"
+  },
+  "tests": {
+    "pytest": "74 passed, exit 0",
+    "vitest": "6 passed, exit 0"
+  },
+  "blockers": [
+    {
+      "id": "tauri-msvc",
+      "why": "Visual Studio 'C++ Build Tools' workload missing: link.exe fails",
+      "evidence": "cargo build log: 'note: in the Visual Studio installer, ensure the C++ build tools workload is selected'; vswhere finds no VC.Tools.x86.x64",
+      "impact": "No NSIS/MSI installer from Tauri in this environment",
+      "next_action": "Install the workload, then: npm run tauri -w apps/desktop"
+    }
+  ]
+}

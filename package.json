@@ -1,0 +1,17 @@
+{
+  "name": "ui-binder",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/desktop",
+    "packages/project-analyzer"
+  ],
+  "scripts": {
+    "dev": "python scripts/dev.py",
+    "dev:frontend": "npm run dev -w apps/desktop",
+    "build": "npm run build -w apps/desktop",
+    "typecheck": "npm run typecheck -w apps/desktop",
+    "test": "npm run test -w apps/desktop",
+    "tauri": "npm run tauri -w apps/desktop"
+  }
+}

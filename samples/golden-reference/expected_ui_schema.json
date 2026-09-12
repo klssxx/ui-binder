@@ -1,0 +1,19 @@
+{
+  "$comment": "Invariants the heuristic pipeline must satisfy on reference.png — regression gate. Exact trees are not asserted (honest heuristics), structural truth is.",
+  "screen": { "width": 1280, "height": 800 },
+  "components_total_min": 15,
+  "min_counts": {
+    "navbar": 1,
+    "sidebar": 1,
+    "panel": 1,
+    "input": 1,
+    "button": 2,
+    "heading": 1,
+    "text": 5
+  },
+  "must_contain_bbox": [
+    { "type": "button", "x": 300, "y": 300, "w": 140, "h": 40, "tolerance": 12 },
+    { "type": "button", "x": 460, "y": 300, "w": 120, "h": 40, "tolerance": 12 },
+    { "type": "input", "x": 300, "y": 236, "w": 420, "h": 38, "tolerance": 14 }
+  ]
+}

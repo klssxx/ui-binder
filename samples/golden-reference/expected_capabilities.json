@@ -1,0 +1,19 @@
+{
+  "$comment": "What analyze-project must detect on samples/sample_app (Python ast + Babel AST).",
+  "must_include_names": [
+    "api_generate",
+    "generate_idea",
+    "evaluate_idea",
+    "save_result",
+    "export_report",
+    "load_history",
+    "restore_session",
+    "handleGenerate"
+  ],
+  "routes": [
+    { "method": "POST", "path": "/api/generate" },
+    { "method": "GET", "path": "/api/health" }
+  ],
+  "react_components": ["App", "IdeaInput", "GenerateButton", "ResultPanel"],
+  "expected_unbound_orphans": ["export_report", "load_history", "restore_session"]
+}
