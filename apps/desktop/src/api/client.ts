@@ -107,6 +107,12 @@ export const api = {
     call<Record<string, unknown>>(`/api/workspaces/${wsId}/export`,
       { method: "POST", ...json({ target_dir: targetDir }) }),
 
+  specSuggest: (wsId: string, item: { name: string; description: string; type: string }) =>
+    call<{ suggestions: Suggestion[] }>(`/api/workspaces/${wsId}/spec/suggest`,
+      { method: "POST", ...json(item) }).catch((e) => {
+        throw e;
+      }),
+
   search: (wsId: string, q: string) =>
     call<Record<string, unknown>>(`/api/workspaces/${wsId}/search?q=${encodeURIComponent(q)}`),
 

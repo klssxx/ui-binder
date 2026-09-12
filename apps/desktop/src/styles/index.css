@@ -365,6 +365,24 @@ code, .mono { font-family: var(--mono); font-size: 11px; }
 }
 .toast-error { border-color: var(--bad); color: #ffb9be; }
 
+/* SPEC (F1) */
+.spec-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.spec-form input:nth-child(1) { width: 220px; }
+.spec-form input:nth-child(2) { flex: 1; min-width: 260px; }
+.spec-form select { width: 110px; }
+.spec-actions { display: flex; gap: 4px; }
+.spec-suggest { border-top: 1px solid var(--line); padding-top: 8px; }
+
+/* splitters (F0) */
+.splitter { background: transparent; flex-shrink: 0; z-index: 30; }
+.splitter-x { width: 5px; cursor: col-resize; }
+.splitter-y { height: 5px; cursor: row-resize; }
+.splitter:hover, .splitter-active { background: var(--accent-dim); }
+.hint { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+
+/* imagen de referencia sin distorsión si el lienzo cambia de proporción */
+.canvas-reference { object-fit: contain; }
+
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--bg0); }
 ::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 5px; border: 2px solid var(--bg0); }

@@ -10,6 +10,7 @@ import { PromptModal } from "./components/PromptModal";
 import { StatusBar } from "./components/StatusBar";
 import { Toolbar, type ToolbarActions } from "./components/Toolbar";
 import { TreePanel } from "./components/TreePanel";
+import { Splitter } from "./components/Splitter";
 import { WorkspaceDialog } from "./components/WorkspaceDialog";
 import { EditorProvider, useEditor } from "./state/editorStore";
 import type { Binding, Health, Workspace } from "./types";
@@ -34,6 +35,9 @@ function Shell() {
     fidelity: null as number | null, coverage: null as number | null,
   });
   const [reference, setReference] = useState<{ id: string; width: number; height: number } | null>(null);
+  const [treeW, setTreeW] = useState(230);
+  const [inspW, setInspW] = useState(280);
+  const [dockH, setDockH] = useState(220);
 
   const notify = useCallback((kind: "info" | "error", text: string) => {
     setToast({ kind, text });
@@ -241,15 +245,20 @@ function Shell() {
     <div className="app">
       <Toolbar actions={actions} busy={busy} health={health} />
       <div className="main">
-        <TreePanel />
+        <div style={{ width: treeW, flexShrink: 0, display: "flex" }}><TreePanel /></div>
+        <Splitter direction="x" onDelta={(d) => setTreeW((w) => Math.min(420, Math.max(160, w + d)))} />
         <div className="center">
           {showPreview
             ? <PreviewPane onClose={() => setShowPreview(false)} />
             : <Canvas reference={reference} />}
         </div>
-        <Inspector />
+        <Splitter direction="x" onDelta={(d) => setInspW((w) => Math.min(460, Math.max(200, w - d)))} />
+        <div style={{ width: inspW, flexShrink: 0, display: "flex" }}><Inspector /></div>
       </div>
-      <BottomDock tab={dockTab} setTab={setDockTab} onFidelity={(v) => setStats((s) => ({ ...s, coverage: v }))} />
+      <Splitter direction="y" onDelta={(d) => setDockH((h) => Math.min(480, Math.max(120, h - d)))} />
+      <div style={{ height: dockH, flexShrink: 0, display: "flex" }}>
+        <BottomDock tab={dockTab} setTab={setDockTab} onFidelity={(v) => setStats((s) => ({ ...s, coverage: v }))} />
+      </div>
       <StatusBar {...stats} />
       {toast && <div className={`toast toast-${toast.kind}`}>{toast.text}</div>}
       {showPalette && <CommandPalette actions={actions} onClose={() => setShowPalette(false)} />}

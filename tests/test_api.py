@@ -140,3 +140,24 @@ def test_export_requires_empty_target(client, sample_app_dir, golden_png, tmp_pa
     assert r.status_code == 422
     plan = client.get(f"/api/workspaces/{ws['id']}/export-plan").json()
     assert plan["files_created"]
+
+
+def test_spec_suggest_by_description(client, sample_app_dir):
+    ws = client.post("/api/workspaces", json={"name": "spec"}).json()
+    client.post(f"/api/workspaces/{ws['id']}/import-project", json={"path": str(sample_app_dir)})
+    client.post(f"/api/workspaces/{ws['id']}/analyze-project")
+    r = client.post(f"/api/workspaces/{ws['id']}/spec/suggest", json={
+        "name": "Generar idea", "description": "genera una idea a partir del prompt",
+        "type": "button"})
+    assert r.status_code == 200
+    sugs = r.json()["suggestions"]
+    assert sugs, "la descripción en castellano debe encontrar la ruta /api/generate"
+    routes = client.get(f"/api/workspaces/{ws['id']}/capabilities").json()["capabilities"]
+    generate_routes = {c["capability_id"] for c in routes
+                       if c["http_path"] == "/api/generate"}
+    assert any(s["capability_id"] in generate_routes for s in sugs[:3]), \
+        "la ruta de generación debe estar entre las mejores sugerencias"
+    # sin proyecto analizado → 409 honesto
+    ws2 = client.post("/api/workspaces", json={"name": "spec2"}).json()
+    assert client.post(f"/api/workspaces/{ws2['id']}/spec/suggest",
+                       json={"name": "x"}).status_code == 409

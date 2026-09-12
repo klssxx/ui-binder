@@ -4,15 +4,61 @@ import { COMPONENT_TYPES } from "../types";
 import type { ComponentType } from "../types";
 import { BindingEditor } from "./BindingEditor";
 
+export const PRESETS: Record<string, [number, number]> = {
+  "Escritorio 1920": [1920, 1080],
+  "Escritorio 1366": [1366, 768],
+  "Portátil": [1536, 864],
+  "Tablet": [820, 1180],
+  "Móvil": [390, 844],
+};
+
 export function Inspector() {
   const editor = useEditor();
   const c = editor.selected();
 
   if (!c) {
+    const screen = editor.state.doc?.screen;
     return (
       <div className="inspector">
         <div className="panel-header"><span>INSPECTOR</span></div>
-        <div className="inspector-empty">Selecciona un componente en el lienzo o en el árbol.</div>
+        <div className="inspector-body">
+          <div className="insp-section">
+            <div className="insp-label">LIENZO</div>
+            {screen ? (
+              <>
+                <label className="field"><span>Preset</span>
+                  <select value={screen.preset ?? "custom"}
+                    onChange={(e) => {
+                      const preset = e.target.value;
+                      if (preset === "custom") { editor.setScreen(screen.width, screen.height, null); return; }
+                      const [w, h] = PRESETS[preset];
+                      editor.setScreen(w, h, preset);
+                    }}>
+                    {Object.entries(PRESETS).map(([k, v]) => (
+                      <option key={k} value={k}>{k} ({v[0]}×{v[1]})</option>
+                    ))}
+                    <option value="custom">Personalizado</option>
+                  </select>
+                </label>
+                <div className="field-grid">
+                  <label className="field"><span>Ancho</span>
+                    <input type="number" value={screen.width}
+                      onChange={(e) => editor.setScreen(Math.max(50, Number(e.target.value)), screen.height, null)} />
+                  </label>
+                  <label className="field"><span>Alto</span>
+                    <input type="number" value={screen.height}
+                      onChange={(e) => editor.setScreen(screen.width, Math.max(50, Number(e.target.value)), null)} />
+                  </label>
+                </div>
+                <p className="hint">Cambia el tamaño del lienzo donde trabajas. Los componentes y la imagen de referencia se conservan.</p>
+              </>
+            ) : <span className="dim">Sin documento: importa una imagen o añade componentes.</span>}
+          </div>
+          <div className="insp-section">
+            <div className="insp-label">AYUDA</div>
+            <p className="hint">Selecciona un componente en el lienzo o en el árbol para editar contenido, estilo y bindings. Sin selección, aquí ajustas el lienzo.</p>
+          </div>
+        </div>
       </div>
     );
   }

@@ -181,3 +181,11 @@ export interface Health {
   vision_provider: { available: string[]; configured: string; remote_configured: boolean };
   workspaces: { count: number };
 }
+
+export interface SpecItem {
+  id: string;
+  name: string;
+  description: string;
+  type: ComponentType;
+  mounted_component_id?: string | null;
+}

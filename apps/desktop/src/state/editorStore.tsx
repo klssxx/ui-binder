@@ -23,7 +23,9 @@ type Action =
       [UIComponent[], UIDocument["screen"]] }
   | { type: "undo" }
   | { type: "redo" }
-  | { type: "saved"; version: number };
+  | { type: "saved"; version: number }
+  | { type: "screen"; screen: UIDocument["screen"] }
+  | { type: "metadata"; metadata: Record<string, unknown> };
 
 function reducer(state: EditorState, action: Action): EditorState {
   switch (action.type) {
@@ -79,6 +81,21 @@ function reducer(state: EditorState, action: Action): EditorState {
     }
     case "saved":
       return { ...state, dirty: false, lastSavedVersion: action.version };
+    case "screen":
+      if (!state.doc) return state;
+      return {
+        ...state,
+        doc: { ...state.doc, screen: action.screen },
+        past: [...state.past, state.doc].slice(-HISTORY_LIMIT),
+        future: [], dirty: true,
+      };
+    case "metadata":
+      if (!state.doc) return state;
+      return {
+        ...state,
+        doc: { ...state.doc, metadata: { ...state.doc.metadata, ...action.metadata } },
+        dirty: true,
+      };
     default:
       return state;
   }
@@ -102,6 +119,8 @@ export interface EditorApi {
   undo(): void;
   redo(): void;
   markSaved(version: number): void;
+  setScreen(width: number, height: number, preset: string | null): void;
+  patchMetadata(partial: Record<string, unknown>): void;
   selected(): UIComponent | null;
   byId(id: string): UIComponent | undefined;
   childrenOf(parentId: string): UIComponent[];
@@ -231,6 +250,11 @@ export function EditorProvider({ children }: { children: React.ReactNode }) {
       undo: () => dispatch({ type: "undo" }),
       redo: () => dispatch({ type: "redo" }),
       markSaved: (version) => dispatch({ type: "saved", version }),
+      setScreen: (width, height, preset) =>
+        dispatch({ type: "screen", screen: { ...((state.doc?.screen ?? {
+          id: "screen", width: 1280, height: 800, background: null, preset: null,
+        } as UIDocument["screen"])), width, height, preset } }),
+      patchMetadata: (partial) => dispatch({ type: "metadata", metadata: partial }),
       selected: () =>
         (state.doc?.components ?? []).find((c) => c.id === state.selectedId) ?? null,
       byId: (id) => find(state.doc?.components ?? [], id),

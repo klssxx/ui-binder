@@ -1,14 +1,15 @@
 /** BOTTOM dock: Trace | Bindings | Capabilities | Orphans | Diff | Logs. */
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
+import { SpecTab } from "./SpecTab";
 import { useEditor } from "../state/editorStore";
 import type {
   Binding, Capability, DiffMetrics, LogEntry, OrphanReport, TraceEvent, VerifyReport,
 } from "../types";
 
-export type DockTab = "trace" | "bindings" | "capabilities" | "orphans" | "diff" | "logs";
-const TABS: DockTab[] = ["trace", "bindings", "capabilities", "orphans", "diff", "logs"];
-const TAB_LABEL: Record<DockTab, string> = { trace: "TRAZA", bindings: "BINDINGS", capabilities: "CAPACIDADES", orphans: "HUÉRFANOS", diff: "COMPARACIÓN", logs: "LOGS" };
+export type DockTab = "trace" | "bindings" | "capabilities" | "orphans" | "diff" | "logs" | "spec";
+const TABS: DockTab[] = ["spec", "trace", "bindings", "capabilities", "orphans", "diff", "logs"];
+const TAB_LABEL: Record<DockTab, string> = { spec: "SPEC", trace: "TRAZA", bindings: "BINDINGS", capabilities: "CAPACIDADES", orphans: "HUÉRFANOS", diff: "COMPARACIÓN", logs: "LOGS" };
 
 export function BottomDock({ tab, setTab, onFidelity }: {
   tab: DockTab; setTab: (t: DockTab) => void;
@@ -23,6 +24,7 @@ export function BottomDock({ tab, setTab, onFidelity }: {
         ))}
       </div>
       <div className="dock-body">
+        {tab === "spec" && <SpecTab />}
         {tab === "trace" && <TraceTab />}
         {tab === "bindings" && <BindingsTab />}
         {tab === "capabilities" && <CapabilitiesTab />}
