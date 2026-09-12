@@ -33,7 +33,7 @@ export function TreePanel() {
           <span className="tree-icon">{TYPE_ICONS[c.type] ?? "?"}</span>
           <span className="tree-name">{c.name || c.id}</span>
           {c.bindings.length > 0 && <span className="tree-badge">b{c.bindings.length}</span>}
-          <span className="tree-conf" title="confidence">
+          <span className="tree-conf" title="confianza (F=hecho manual, H=alta, M=media, L=baja, ?=desconocida)">
             {bandLabel(Number(c.metadata.confidence ?? 0), c.metadata.source === "manual")}
           </span>
         </div>
@@ -45,7 +45,7 @@ export function TreePanel() {
   return (
     <div className="tree-panel">
       <div className="panel-header">
-        <span>COMPONENTS</span>
+        <span>COMPONENTES</span>
         <button className="btn-mini" title="Añadir componente" onClick={() => setAdding((v) => !v)}>+</button>
       </div>
       {adding && (
@@ -72,7 +72,7 @@ export function TreePanel() {
       <div className="tree-body">
         {editor.state.doc ? (
           <>
-            <div className="tree-row tree-screen">🖥 screen {editor.state.doc.screen.width}×{editor.state.doc.screen.height}</div>
+            <div className="tree-row tree-screen">🖥 pantalla {editor.state.doc.screen.width}×{editor.state.doc.screen.height}</div>
             {editor.childrenOf("screen").map((c) => renderNode(c, 1))}
           </>
         ) : (

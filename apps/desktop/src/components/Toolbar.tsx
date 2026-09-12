@@ -29,7 +29,7 @@ export function Toolbar({ actions, busy, health }: {
     <div className="toolbar">
       <div className="toolbar-brand">
         <span className="logo">◈</span>
-        <span className="brand">UI <strong>BINDER</strong></span>
+        <span className="brand"><strong>UIEDITION</strong></span>
         <span className={`health health-${health}`} title={health}>●</span>
       </div>
 
@@ -40,20 +40,20 @@ export function Toolbar({ actions, busy, health }: {
       </div>
 
       <div className="toolbar-actions">
-        <ToolBtn label="New Workspace" onClick={actions.newWorkspace} />
-        <ToolBtn label="Import Image" onClick={() => fileRef.current?.click()} />
-        <ToolBtn label="Analyze UI" onClick={actions.analyzeUi} primary />
-        <ToolBtn label="Import Project" onClick={actions.importProject} />
-        <ToolBtn label="Analyze Project" onClick={actions.analyzeProject} primary />
-        <ToolBtn label="Save" onClick={actions.save} />
-        <ToolBtn label="Verify" onClick={actions.verify} />
-        <ToolBtn label="Preview" onClick={actions.togglePreview} />
-        <ToolBtn label="Export" onClick={actions.exportProject} />
+        <ToolBtn label="Nuevo workspace" onClick={actions.newWorkspace} />
+        <ToolBtn label="Importar imagen" onClick={() => fileRef.current?.click()} />
+        <ToolBtn label="Analizar UI" onClick={actions.analyzeUi} primary />
+        <ToolBtn label="Importar proyecto" onClick={actions.importProject} />
+        <ToolBtn label="Analizar proyecto" onClick={actions.analyzeProject} primary />
+        <ToolBtn label="Guardar" onClick={actions.save} />
+        <ToolBtn label="Verificar" onClick={actions.verify} />
+        <ToolBtn label="Previsualizar" onClick={actions.togglePreview} />
+        <ToolBtn label="Exportar" onClick={actions.exportProject} />
       </div>
 
       <div className="toolbar-right">
         {busy && <span className="busy">{busy}…</span>}
-        <button className="btn-mini" title="Buscar (Ctrl+Shift+F)" onClick={actions.openSearch}>⌕</button>
+        <button className="btn-mini" title="Buscar (Ctrl+Mayús+F)" onClick={actions.openSearch}>⌕</button>
         <button className="btn-mini" title="Paleta de comandos (Ctrl+K)" onClick={actions.openPalette}>⌘K</button>
       </div>
 

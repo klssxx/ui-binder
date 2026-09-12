@@ -38,13 +38,13 @@ class AnalyzeRequest(BaseModel):
 def analyze_ui(ws_id: str, body: AnalyzeRequest) -> dict[str, Any]:
     store = get_store()
     if not store.workspace_exists(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     image = store.get_image(body.image_id) if body.image_id else store.get_reference_image(ws_id)
     if image is None:
-        raise HTTPException(409, "No reference image. Import a screenshot first (POST /workspaces/{id}/images).")
+        raise HTTPException(409, "No hay imagen de referencia: importa primero un screenshot.")
     path = Path(image["path"])
     if not path.is_file():
-        raise HTTPException(410, "Reference image file missing on disk. Re-import it.")
+        raise HTTPException(410, "El archivo de la imagen de referencia no está en disco; vuelve a importarlo.")
 
     try:
         provider = get_provider(body.provider)
@@ -56,7 +56,7 @@ def analyze_ui(ws_id: str, body: AnalyzeRequest) -> dict[str, Any]:
         raise HTTPException(409, str(exc)) from exc
     except Exception as exc:  # vision crashed on a broken image
         log(ws_id, "ERROR", "vision analysis failed", error=str(exc), provider=body.provider)
-        raise HTTPException(422, f"Vision analysis failed: {exc}") from exc
+        raise HTTPException(422, f"El análisis visual falló: {exc}") from exc
 
     design_md = tokens_to_design_md(tokens, document.metadata)
     wrapper = {"ui": document.model_dump(), "tokens": tokens.model_dump(), "design_md": design_md}
@@ -75,7 +75,7 @@ def get_ui(ws_id: str) -> dict[str, Any]:
     except CorruptDocumentError as exc:
         raise _corrupt_422(exc) from exc
     if row is None:
-        raise HTTPException(409, "No UI document yet. Run Analyze UI first.")
+        raise HTTPException(409, "Aún no hay documento UI: ejecuta antes ANALYZE UI.")
     return row["json"]
 
 
@@ -87,10 +87,10 @@ class UIDocumentPut(BaseModel):
 def put_ui(ws_id: str, body: UIDocumentPut) -> dict[str, Any]:
     store = get_store()
     if not store.workspace_exists(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     problems = body.document.validate_structure()
     if problems:
-        raise HTTPException(422, {"message": "UI document failed structural validation.",
+        raise HTTPException(422, {"message": "El documento UI no supera la validación estructural.",
                                   "problems": problems[:20]})
     try:
         previous = store.get_ui_document(ws_id)
@@ -112,5 +112,5 @@ def design_md(ws_id: str) -> dict[str, str]:
     except CorruptDocumentError as exc:
         raise _corrupt_422(exc) from exc
     if row is None or not row["json"].get("design_md"):
-        raise HTTPException(409, "No design tokens yet. Run Analyze UI first.")
+        raise HTTPException(409, "Aún no hay tokens de diseño: ejecuta antes ANALYZE UI.")
     return {"markdown": row["json"]["design_md"]}

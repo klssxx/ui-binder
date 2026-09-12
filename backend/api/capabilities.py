@@ -19,7 +19,7 @@ class LegacyUpdate(BaseModel):
 def list_capabilities(ws_id: str, kind: Optional[str] = Query(None)) -> dict[str, Any]:
     store = get_store()
     if not store.workspace_exists(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     caps = store.list_capabilities(ws_id)
     if kind:
         caps = [c for c in caps if c["kind"] == kind]
@@ -30,6 +30,6 @@ def list_capabilities(ws_id: str, kind: Optional[str] = Query(None)) -> dict[str
 def mark_legacy(ws_id: str, capability_id: str, body: LegacyUpdate) -> dict[str, Any]:
     store = get_store()
     if not store.set_capability_legacy(ws_id, capability_id, body.legacy):
-        raise HTTPException(404, "Capability not found in this workspace.")
+        raise HTTPException(404, "Capacidad no encontrada en este workspace.")
     caps = {c["capability_id"]: c for c in store.list_capabilities(ws_id)}
     return caps[capability_id]

@@ -14,7 +14,7 @@ export function PreviewPane({ onClose }: { onClose: () => void }) {
   const [mode, setMode] = useState<"design" | "connected">("design");
   const [trace, setTrace] = useState<string[]>([]);
 
-  if (!doc) return <div className="preview-empty">Nada que previsualizar aún.</div>;
+  if (!doc) return <div className="preview-empty">Nada que previsualizar todavía.</div>;
 
   const fireBound = async (c: UIComponent) => {
     if (mode !== "connected" || !ws || c.bindings.length === 0) return;
@@ -28,16 +28,16 @@ export function PreviewPane({ onClose }: { onClose: () => void }) {
     <div className="preview-pane">
       <div className="preview-toolbar">
         <button className={`btn-mini ${mode === "design" ? "btn-primary" : ""}`}
-          onClick={() => setMode("design")}>Design</button>
+          onClick={() => setMode("design")}>Diseño</button>
         <button className={`btn-mini ${mode === "connected" ? "btn-primary" : ""}`}
-          onClick={() => setMode("connected")}>Connected</button>
+          onClick={() => setMode("connected")}>Conectado</button>
         <span className="dim">
           {mode === "connected"
-            ? "los bindings confirmados requieren el proyecto importado corriendo"
+            ? "los bindings confirmados requieren que el proyecto importado esté en ejecución"
             : "render fiel del AST reconstruido"}
         </span>
         <span className="spacer" />
-        <button className="btn-mini" onClick={onClose}>✕ Cerrar preview</button>
+        <button className="btn-mini" onClick={onClose}>✕ Cerrar previsualización</button>
       </div>
       {mode === "connected" && trace.length > 0 && (
         <div className="preview-trace">

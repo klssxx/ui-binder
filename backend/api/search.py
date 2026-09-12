@@ -14,7 +14,7 @@ router = APIRouter(tags=["search"])
 def search(ws_id: str, q: str = Query(..., min_length=1)) -> dict[str, Any]:
     store = get_store()
     if not store.workspace_exists(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     needle = q.strip().lower()
 
     components = []

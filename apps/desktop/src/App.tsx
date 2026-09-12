@@ -33,6 +33,7 @@ function Shell() {
     capabilities: 0, bindings: 0, broken: 0, unbound: 0,
     fidelity: null as number | null, coverage: null as number | null,
   });
+  const [reference, setReference] = useState<{ id: string; width: number; height: number } | null>(null);
 
   const notify = useCallback((kind: "info" | "error", text: string) => {
     setToast({ kind, text });
@@ -66,7 +67,6 @@ function Shell() {
       const target = list.find((w) => w.id === last) ?? list[0];
       if (target) await openWorkspace(target);
     })().catch(() => notify("error", "Backend no disponible en http://127.0.0.1:8765 — ejecuta scripts/dev.py"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const refreshStats = useCallback(async (wsId: string) => {
@@ -87,6 +87,7 @@ function Shell() {
   const openWorkspace = useCallback(async (ws: Workspace) => {
     editor.setWorkspace(ws);
     localStorage.setItem("uibinder.workspace", ws.id);
+    setReference(await api.referenceImage(ws.id));
     try {
       const doc = await api.getUi(ws.id);
       editor.loadDocument(doc);
@@ -140,15 +141,16 @@ function Shell() {
     importScreenshot: (file) => {
       const ws = requireWs();
       if (!ws) return;
-      void wrap("Import image", async () => {
+      void wrap("Importar imagen", async () => {
         const img = await api.uploadImage(ws.id, file);
-        notify("info", `Imagen importada: ${img.width}×${img.height} (${img.format})`);
+        setReference({ id: img.id, width: img.width, height: img.height });
+        notify("info", `Imagen importada: ${img.width}×${img.height} (${img.format}) — ya la ves como fondo del lienzo`);
       });
     },
     analyzeUi: () => {
       const ws = requireWs();
       if (!ws) return;
-      void wrap("Analyze UI", async () => {
+      void wrap("Analizar UI", async () => {
         const r = await api.analyzeUi(ws.id, "heuristic");
         const doc = await api.getUi(ws.id);
         editor.loadDocument(doc);
@@ -160,14 +162,14 @@ function Shell() {
       if (!ws) return;
       setShowPalette(false);
       setPrompt({
-        title: "IMPORT PROJECT (READ-ONLY)",
+        title: "IMPORTAR PROYECTO (SOLO LECTURA)",
         placeholder: "C:\\ruta\\absoluta\\del\\proyecto",
         validate: (v) => (v.trim() ? null : "Introduce una ruta."),
         onSubmit: (path) => {
           setPrompt(null);
-          void wrap("Import project", async () => {
+          void wrap("Importar proyecto", async () => {
             const r = await api.importProject(ws.id, path.trim());
-            notify("info", `Proyecto importado read-only: ${r.file_count} archivos, [${r.frameworks.join(", ")}]`);
+            notify("info", `Proyecto importado en solo lectura: ${r.file_count} archivos, [${r.frameworks.join(", ")}]`);
           });
         },
       });
@@ -175,17 +177,17 @@ function Shell() {
     analyzeProject: () => {
       const ws = requireWs();
       if (!ws) return;
-      void wrap("Analyze project", async () => {
+      void wrap("Analizar proyecto", async () => {
         const r = await api.analyzeProject(ws.id);
         await refreshStats(ws.id);
-        notify("info", `${r.capabilities} capabilities, ${r.edges} relaciones en el grafo`);
+        notify("info", `${r.capabilities} capacidades, ${r.edges} relaciones en el grafo`);
       });
     },
     verify: () => {
       const ws = requireWs();
       if (!ws) return;
       setDockTab("orphans");
-      void wrap("Verify", async () => {
+      void wrap("Verificar", async () => {
         const r = await api.verify(ws.id);
         await refreshStats(ws.id);
         setStats((s) => ({ ...s, coverage: r.scores.functional_coverage, fidelity: r.scores.visual_fidelity }));
@@ -195,12 +197,12 @@ function Shell() {
       const ws = requireWs();
       if (!ws) return;
       setPrompt({
-        title: "EXPORT PROJECT (directorio nuevo y vacío)",
+        title: "EXPORTAR PROYECTO (directorio nuevo y vacío)",
         placeholder: "C:\\ruta\\nueva\\vacía",
         validate: (v) => (v.trim() ? null : "Introduce una ruta."),
         onSubmit: (target) => {
           setPrompt(null);
-          void wrap("Export", async () => {
+          void wrap("Exportar", async () => {
             const r = await api.exportProject(ws.id, target.trim());
             const files = (r as { files_created?: string[] }).files_created?.length ?? 0;
             notify("info", `Exportado a ${target.trim()} — ${files} archivos`);
@@ -211,7 +213,7 @@ function Shell() {
     save: () => {
       const ws = editor.state.workspace;
       if (!ws || !editor.state.doc) { notify("error", "Nada que guardar."); return; }
-      void wrap("Save", async () => {
+      void wrap("Guardar", async () => {
         const r = await api.saveUi(ws.id, editor.state.doc!);
         editor.markSaved(r.version);
         notify("info", `Guardado v${r.version}`);
@@ -243,7 +245,7 @@ function Shell() {
         <div className="center">
           {showPreview
             ? <PreviewPane onClose={() => setShowPreview(false)} />
-            : <Canvas />}
+            : <Canvas reference={reference} />}
         </div>
         <Inspector />
       </div>

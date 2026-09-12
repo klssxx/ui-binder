@@ -47,8 +47,8 @@ def orphan_report(capabilities: list[dict[str, Any]], bindings: list[dict[str, A
         "unknown": len(classified["UNKNOWN"]),
         "legacy": len(classified["LEGACY"]),
         "detail": classified,
-        "policy": "No capability is ever deleted automatically. Marking LEGACY or removing "
-                  "requires explicit user action.",
+        "policy": "Ninguna capacidad se elimina nunca automáticamente. Marcar como LEGADO o "
+                  "eliminar exige una acción explícita del usuario.",
     }
 
 

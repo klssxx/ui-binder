@@ -44,7 +44,7 @@ def list_workspaces() -> dict[str, Any]:
 def get_workspace(ws_id: str) -> dict[str, Any]:
     ws = get_store().get_workspace(ws_id)
     if ws is None:
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     ui = get_store().get_ui_document(ws_id)
     return {**ws, "has_ui_document": ui is not None, "ui_version": ui["version"] if ui else 0}
 
@@ -52,10 +52,10 @@ def get_workspace(ws_id: str) -> dict[str, Any]:
 @router.patch("/workspaces/{ws_id}")
 def update_workspace(ws_id: str, body: WorkspaceUpdate) -> dict[str, Any]:
     if body.name is None and body.notes is None:
-        raise HTTPException(422, "Nothing to update.")
+        raise HTTPException(422, "Nada que actualizar.")
     current = get_store().get_workspace(ws_id)
     if current is None:
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     ws = get_store().rename_workspace(ws_id, body.name or current["name"], body.notes)
     return ws
 
@@ -63,13 +63,13 @@ def update_workspace(ws_id: str, body: WorkspaceUpdate) -> dict[str, Any]:
 @router.delete("/workspaces/{ws_id}", status_code=204)
 def delete_workspace(ws_id: str) -> None:
     if not get_store().delete_workspace(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
 
 
 @router.post("/workspaces/{ws_id}/snapshots", status_code=201)
 def create_snapshot(ws_id: str, body: SnapshotCreate) -> dict[str, Any]:
     if not get_store().workspace_exists(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     try:
         snap = get_store().create_snapshot(ws_id, body.label)
     except CorruptDocumentError as exc:
@@ -94,6 +94,6 @@ def restore_snapshot(ws_id: str, snapshot_id: str) -> dict[str, Any]:
     except CorruptDocumentError as exc:
         raise HTTPException(422, {"message": "El snapshot está corrupto.", "cause": str(exc)}) from exc
     if result is None:
-        raise HTTPException(404, "Snapshot not found for this workspace.")
+        raise HTTPException(404, "Snapshot no encontrado en este workspace.")
     log(ws_id, "INFO", "snapshot restored", snapshot=snapshot_id)
     return {"restored": True, "version": result["version"], "updated_at": result["updated_at"]}

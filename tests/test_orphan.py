@@ -54,4 +54,4 @@ def test_functional_coverage():
 def test_policy_statement_present():
     r = orphan_report([], [])
     assert "policy" in r
-    assert "explicit user action" in r["policy"]
+    assert "acción explícita del usuario" in r["policy"]

@@ -8,6 +8,7 @@ import type {
 
 export type DockTab = "trace" | "bindings" | "capabilities" | "orphans" | "diff" | "logs";
 const TABS: DockTab[] = ["trace", "bindings", "capabilities", "orphans", "diff", "logs"];
+const TAB_LABEL: Record<DockTab, string> = { trace: "TRAZA", bindings: "BINDINGS", capabilities: "CAPACIDADES", orphans: "HUÉRFANOS", diff: "COMPARACIÓN", logs: "LOGS" };
 
 export function BottomDock({ tab, setTab, onFidelity }: {
   tab: DockTab; setTab: (t: DockTab) => void;
@@ -18,7 +19,7 @@ export function BottomDock({ tab, setTab, onFidelity }: {
       <div className="dock-tabs">
         {TABS.map((t) => (
           <button key={t} className={`dock-tab ${tab === t ? "dock-tab-active" : ""}`}
-            onClick={() => setTab(t)}>{t.toUpperCase()}</button>
+            onClick={() => setTab(t)}>{TAB_LABEL[t]}</button>
         ))}
       </div>
       <div className="dock-body">
@@ -124,11 +125,11 @@ function CapabilitiesTab() {
       <div className="tab-toolbar">
         <input className="tree-filter" placeholder="filtrar capacidad…" value={q}
           onChange={(e) => setQ(e.target.value)} />
-        <span className="dim">{caps.length} capabilities detectadas</span>
+        <span className="dim">{caps.length} capacidades detectadas</span>
         <button className="btn-mini" onClick={load}>Recargar</button>
       </div>
       <table className="data-table">
-        <thead><tr><th>Kind</th><th>Nombre</th><th>Origen</th><th>HTTP</th><th>Conf</th><th>Estado</th></tr></thead>
+        <thead><tr><th>Tipo</th><th>Nombre</th><th>Origen</th><th>HTTP</th><th>Conf</th><th>Estado</th></tr></thead>
         <tbody>
           {shown.map((c) => (
             <tr key={c.capability_id}>
@@ -142,7 +143,7 @@ function CapabilitiesTab() {
           ))}
         </tbody>
       </table>
-      {caps.length === 0 && <EmptyLine>Sin capabilities. IMPORT PROJECT → ANALYZE PROJECT.</EmptyLine>}
+      {caps.length === 0 && <EmptyLine>Sin capacidades. IMPORTAR PROYECTO → ANALIZAR PROYECTO.</EmptyLine>}
     </div>
   );
 }
@@ -168,19 +169,19 @@ function OrphansTab({ onCoverage }: { onCoverage?: (v: number | null) => void })
 
   if (!wsId) return <EmptyLine>Abre un workspace.</EmptyLine>;
   if (error) return <EmptyLine>{error}</EmptyLine>;
-  if (!report) return <EmptyLine>{busy ? "Verificando…" : "Ejecuta VERIFY."}</EmptyLine>;
+  if (!report) return <EmptyLine>{busy ? "Verificando…" : "Pulsa VERIFICAR en la barra superior."}</EmptyLine>;
   const o = report.orphan;
   return (
     <div className="tab-col">
       <div className="coverage-strip">
-        <Metric label="Detected" value={o.capabilities_detected} />
-        <Metric label="Bound" value={o.bound} tone="good" />
-        <Metric label="Unbound" value={o.unbound} tone="warn" />
-        <Metric label="Broken" value={o.broken} tone={o.broken ? "bad" : undefined} />
-        <Metric label="Unknown" value={o.unknown} />
-        <Metric label="Legacy" value={o.legacy} />
-        <Metric label="Functional coverage" value={`${report.scores.functional_coverage}%`} tone="good" />
-        <Metric label="Visual fidelity" value={report.scores.visual_fidelity != null
+        <Metric label="Detectadas" value={o.capabilities_detected} />
+        <Metric label="Vinculadas" value={o.bound} tone="good" />
+        <Metric label="Sin vincular" value={o.unbound} tone="warn" />
+        <Metric label="Rotas" value={o.broken} tone={o.broken ? "bad" : undefined} />
+        <Metric label="Desconocidas" value={o.unknown} />
+        <Metric label="Legado" value={o.legacy} />
+        <Metric label="Cobertura funcional" value={`${report.scores.functional_coverage}%`} tone="good" />
+        <Metric label="Fidelidad visual" value={report.scores.visual_fidelity != null
           ? `${report.scores.visual_fidelity}%` : "—"} />
         <button className="btn-mini" disabled={busy} onClick={run}>Re-verificar</button>
       </div>
@@ -232,9 +233,9 @@ function DiffTab() {
       {error && <div className="error-note">{error}</div>}
       {metrics && (
         <div className="diff-results">
-          <div className="big-score">{metrics.visual_fidelity_score}%<span>visual fidelity</span></div>
+          <div className="big-score">{metrics.visual_fidelity_score}%<span>fidelidad visual</span></div>
           <div className="diff-metrics">
-            <div>pixel diff: {(metrics.pixel_diff * 100).toFixed(2)}%</div>
+            <div>diferencia de píxeles: {(metrics.pixel_diff * 100).toFixed(2)}%</div>
             <div>SSIM: {metrics.ssim.toFixed(4)}</div>
             <div>edge SSIM: {metrics.edge_ssim.toFixed(4)}</div>
             <div>regiones: {metrics.region_count}</div>

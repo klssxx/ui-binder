@@ -12,7 +12,7 @@ export function Inspector() {
     return (
       <div className="inspector">
         <div className="panel-header"><span>INSPECTOR</span></div>
-        <div className="inspector-empty">Selecciona un componente en el canvas o el árbol.</div>
+        <div className="inspector-empty">Selecciona un componente en el lienzo o en el árbol.</div>
       </div>
     );
   }
@@ -55,15 +55,15 @@ export function Inspector() {
         </div>
 
         <div className="insp-section">
-          <div className="insp-label">CONTENT</div>
-          <label className="field"><span>Name</span>
+          <div className="insp-label">CONTENIDO</div>
+          <label className="field"><span>Nombre</span>
             <input value={c.name} onChange={(e) => editor.updateComponent(c.id, { name: e.target.value })} />
           </label>
-          <label className="field"><span>Text</span>
+          <label className="field"><span>Texto</span>
             <input value={c.text ?? ""} placeholder="(sin texto)"
               onChange={(e) => editor.setText(c.id, e.target.value)} />
           </label>
-          <label className="field"><span>Type</span>
+          <label className="field"><span>Tipo</span>
             <select value={c.type} onChange={(e) =>
               editor.updateComponent(c.id, { type: e.target.value as ComponentType })}>
               {COMPONENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -72,32 +72,32 @@ export function Inspector() {
         </div>
 
         <div className="insp-section">
-          <div className="insp-label">GEOMETRY</div>
+          <div className="insp-label">GEOMETRÍA</div>
           <div className="field-grid">
-            {num("x", "X")}{num("y", "Y")}{num("width", "Width")}{num("height", "Height")}
+            {num("x", "X")}{num("y", "Y")}{num("width", "Ancho")}{num("height", "Alto")}
           </div>
         </div>
 
         <div className="insp-section">
-          <div className="insp-label">STYLE</div>
+          <div className="insp-label">ESTILO</div>
           <div className="field-grid">
-            {styleField("background", "Background")}
+            {styleField("background", "Fondo")}
             {styleField("color", "Color")}
-            {styleField("fontSize", "Font size", "number")}
-            {styleField("fontFamily", "Font")}
-            {styleField("radius", "Radius", "number")}
-            {styleField("padding", "Padding")}
-            {styleField("margin", "Margin")}
-            {styleField("border", "Border")}
-            {styleField("shadow", "Shadow")}
-            {styleField("opacity", "Opacity", "number")}
+            {styleField("fontSize", "Tamaño fuente", "number")}
+            {styleField("fontFamily", "Fuente")}
+            {styleField("radius", "Redondeo", "number")}
+            {styleField("padding", "Relleno")}
+            {styleField("margin", "Margen")}
+            {styleField("border", "Borde")}
+            {styleField("shadow", "Sombra")}
+            {styleField("opacity", "Opacidad", "number")}
           </div>
         </div>
 
         <div className="insp-section">
-          <div className="insp-label">EVENTS</div>
+          <div className="insp-label">EVENTOS</div>
           <div className="insp-events">
-            {c.bindings.length === 0 && <span className="dim">Sin bindings. Usa SMART BIND abajo.</span>}
+            {c.bindings.length === 0 && <span className="dim">Sin bindings. Usa SMART BIND más abajo.</span>}
             {Object.entries(c.events).map(([k, v]) => (
               <div key={k} className="kv"><span>{k}</span><code>{String(v)}</code></div>
             ))}
@@ -107,7 +107,7 @@ export function Inspector() {
         <BindingEditor componentId={c.id} />
 
         <div className="insp-section">
-          <div className="insp-label">METADATA</div>
+          <div className="insp-label">METADATOS</div>
           <div className="kv"><span>source</span><code>{String(c.metadata.source ?? "?")}</code></div>
           <div className="kv"><span>confidence</span><code>{conf.toFixed(3)}</code></div>
         </div>

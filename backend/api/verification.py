@@ -34,7 +34,7 @@ def _document_or_none(store, ws_id: str):
 def verify(ws_id: str) -> dict[str, Any]:
     store = get_store()
     if not store.workspace_exists(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     caps = store.list_capabilities(ws_id)
     bindings = store.list_bindings(ws_id)
     row = _document_or_none(store, ws_id)
@@ -76,20 +76,20 @@ async def visual_diff(ws_id: str, rendered: UploadFile = File(...),
                       reference_id: Optional[str] = None) -> dict[str, Any]:
     store = get_store()
     if not store.workspace_exists(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     ref = store.get_image(reference_id) if reference_id else store.get_reference_image(ws_id)
     if ref is None:
-        raise HTTPException(409, "No reference image for this workspace.")
+        raise HTTPException(409, "Este workspace no tiene imagen de referencia.")
 
     data = await rendered.read()
     try:
         rendered_img = Image.open(io.BytesIO(data))
         rendered_img.load()
     except (UnidentifiedImageError, OSError) as exc:
-        raise HTTPException(422, f"Invalid rendered image: {exc}") from exc
+        raise HTTPException(422, f"Imagen renderizada inválida: {exc}") from exc
     ref_path = Path(ref["path"])
     if not ref_path.is_file():
-        raise HTTPException(410, "Reference image missing on disk; re-import it.")
+        raise HTTPException(410, "La imagen de referencia no está en disco; vuelve a importarla.")
     with Image.open(ref_path) as rimg:
         rimg.load()
 

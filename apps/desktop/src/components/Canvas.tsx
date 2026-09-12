@@ -2,6 +2,7 @@
  *  select / move / resize / inline text editing. Drag delta lives in state;
  *  the AST is mutated once on pointer-up so undo history stays clean. */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { api } from "../api/client";
 import { useEditor } from "../state/editorStore";
 import type { BBox, UIComponent } from "../types";
 
@@ -28,21 +29,26 @@ export function liveResize(origin: BBox, handle: string, dx: number, dy: number)
   return { x, y, width, height };
 }
 
-export function Canvas() {
+export function Canvas({ reference }: { reference: { id: string; width: number; height: number } | null }) {
+  const referenceUrl = reference ? api.referenceImageUrl(reference.id) : null;
   const editor = useEditor();
   const { doc } = editor.state;
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [zoom, setZoom] = useState(1);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showReference, setShowReference] = useState(true);
+
+  const stageW = doc?.screen.width ?? reference?.width ?? 1280;
+  const stageH = doc?.screen.height ?? reference?.height ?? 800;
 
   useLayoutEffect(() => {
     const el = viewportRef.current;
-    if (!el || !doc) return;
-    const fit = Math.min(1, (el.clientWidth - 64) / doc.screen.width,
-      (el.clientHeight - 64) / doc.screen.height);
+    if (!el) return;
+    const fit = Math.min(1, (el.clientWidth - 64) / stageW,
+      (el.clientHeight - 64) / stageH);
     setZoom(Math.max(0.15, Math.round(fit * 100) / 100));
-  }, [doc]);
+  }, [doc, stageW, stageH]);
 
   const commit = useCallback(() => {
     if (!drag) return;
@@ -83,11 +89,31 @@ export function Canvas() {
 
   if (!doc) {
     return (
-      <div className="canvas-empty">
-        <div>
-          <h2>Sin documento UI</h2>
-          <p>Importa un screenshot y ejecuta <strong>ANALYZE UI</strong>, o añade
-            componentes desde el árbol con el botón <strong>+</strong>.</p>
+      <div className="canvas-scroll" ref={viewportRef}
+        onPointerDown={() => { editor.select(null); setEditingId(null); }}>
+        <div className="canvas-zoom">
+          {Math.round(zoom * 100)}%
+          {referenceUrl && (
+            <button className={`ref-toggle ${showReference ? "ref-toggle-on" : ""}`}
+              onClick={(e) => { e.stopPropagation(); setShowReference((v) => !v); }}
+              title="Mostrar u ocultar la imagen de referencia como fondo">
+              referencia
+            </button>
+          )}
+        </div>
+        <div className="canvas-stage" style={{
+          width: stageW, height: stageH,
+          background: "#101216",
+          transform: `scale(${zoom})`, transformOrigin: "top left",
+        }}>
+          {referenceUrl && showReference && (
+            <img className="canvas-reference" src={referenceUrl}
+              alt="imagen de referencia" draggable={false} style={{ opacity: 1 }} />
+          )}
+          <div className="canvas-empty-overlay">
+            <h2>Imagen importada — sin reconstruir</h2>
+            <p>Pulsa <strong>ANALIZAR UI</strong> para detectar los componentes.</p>
+          </div>
         </div>
       </div>
     );
@@ -106,17 +132,36 @@ export function Canvas() {
       ref={viewportRef}
       onPointerDown={() => { editor.select(null); setEditingId(null); }}
     >
-      <div className="canvas-zoom">{Math.round(zoom * 100)}%</div>
+      <div className="canvas-zoom">
+        {Math.round(zoom * 100)}%
+        {referenceUrl && (
+          <button
+            className={`ref-toggle ${showReference ? "ref-toggle-on" : ""}`}
+            onClick={(e) => { e.stopPropagation(); setShowReference((v) => !v); }}
+            title="Mostrar u ocultar la imagen de referencia como fondo"
+          >
+            referencia
+          </button>
+        )}
+      </div>
       <div
         className="canvas-stage"
         style={{
-          width: doc.screen.width,
-          height: doc.screen.height,
+          width: stageW,
+          height: stageH,
           background: doc.screen.background ?? "#101216",
           transform: `scale(${zoom})`,
           transformOrigin: "top left",
         }}
       >
+        {referenceUrl && showReference && (
+          <img
+            className="canvas-reference"
+            src={referenceUrl}
+            alt="imagen de referencia"
+            draggable={false}
+          />
+        )}
         {editor.childrenOf("screen").map((c) => (
           <CanvasNode
             key={c.id}

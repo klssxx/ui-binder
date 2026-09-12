@@ -48,6 +48,8 @@ export const api = {
     form.append("file", file);
     return call<ImageRecord>(`/api/workspaces/${wsId}/images`, { method: "POST", body: form });
   },
+  referenceImage: (wsId: string) =>
+    call<ImageRecord>(`/api/workspaces/${wsId}/reference-image`).catch(() => null),
   referenceImageUrl: (imageId: string) => `${BASE}/api/images/${imageId}/file`,
 
   analyzeUi: (wsId: string, provider = "heuristic") =>

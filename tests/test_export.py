@@ -81,7 +81,7 @@ def test_export_refuses_non_empty_target(tmp_path):
         export_react_project(doc(), [], [], None, target)
         raise AssertionError("should have refused")
     except ValueError as e:
-        assert "not empty" in str(e)
+        assert "no está vacío" in str(e)
 
 
 def test_export_refuses_inside_source_project(tmp_path):
@@ -92,4 +92,4 @@ def test_export_refuses_inside_source_project(tmp_path):
         export_react_project(doc(), [], [], None, target, source_project=source)
         raise AssertionError("should have refused")
     except ValueError as e:
-        assert "overlap" in str(e)
+        assert "solaparse" in str(e)

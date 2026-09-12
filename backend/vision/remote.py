@@ -46,8 +46,8 @@ class OpenAICompatibleVisionProvider:
         self.timeout = timeout
         if not self.base_url or not self.model or not self._api_key:
             raise RuntimeError(
-                "Remote vision provider is not configured. Set UIBINDER_VISION_BASE_URL, "
-                "UIBINDER_VISION_MODEL and UIBINDER_VISION_API_KEY (see .env.example)."
+                "El proveedor de visión remoto no está configurado. Define UIBINDER_VISION_BASE_URL, "
+                "UIBINDER_VISION_MODEL y UIBINDER_VISION_API_KEY (ver .env.example)."
             )
 
     def analyze(self, image: Image.Image) -> tuple[UIDocument, dict[str, Any]]:

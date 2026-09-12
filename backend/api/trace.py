@@ -30,7 +30,7 @@ class TraceEvent(BaseModel):
 def add_event(ws_id: str, body: TraceEvent) -> dict[str, Any]:
     store = get_store()
     if not store.workspace_exists(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     store.add_trace_event(ws_id, body.model_dump(exclude_none=True))
     log(ws_id, "DEBUG", "trace event", event=body.event, component=body.component)
     return {"recorded": True}

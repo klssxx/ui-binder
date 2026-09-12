@@ -56,7 +56,7 @@ def _current_document(store, ws_id: str) -> dict:
             "action": "Restaura un snapshot o guarda un documento válido (PUT /ui).",
         }) from exc
     if row is None:
-        raise HTTPException(409, "No UI document. Run Analyze UI first.")
+        raise HTTPException(409, "Aún no hay documento UI: ejecuta antes ANALYZE UI.")
     return row["json"].get("ui") or {}
 
 
@@ -64,11 +64,11 @@ def _current_document(store, ws_id: str) -> dict:
 def suggest(ws_id: str, body: SuggestRequest) -> dict[str, Any]:
     store = get_store()
     if not store.workspace_exists(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     ui = _current_document(store, ws_id)
     component = next((c for c in ui.get("components", []) if c["id"] == body.component_id), None)
     if component is None:
-        raise HTTPException(404, f"Component '{body.component_id}' not in current AST.")
+        raise HTTPException(404, f"El componente '{body.component_id}' no está en el AST actual.")
     caps = store.list_capabilities(ws_id)
     if not caps:
         raise HTTPException(409, "No capabilities. Import and analyze a project first.")
@@ -95,23 +95,23 @@ def list_bindings(ws_id: str) -> dict[str, Any]:
 def create_binding(ws_id: str, body: BindingCreate) -> dict[str, Any]:
     store = get_store()
     if not store.workspace_exists(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     caps = {c["capability_id"] for c in store.list_capabilities(ws_id)}
     if body.target_capability not in caps:
-        raise HTTPException(422, f"Unknown target capability '{body.target_capability}'.")
+        raise HTTPException(422, f"Capacidad destino desconocida: '{body.target_capability}'.")
     ui = _current_document(store, ws_id)
     comp_ids = {c["id"] for c in ui.get("components", [])}
     if body.component_id not in comp_ids:
-        raise HTTPException(422, f"Component '{body.component_id}' not in current AST.")
+        raise HTTPException(422, f"El componente '{body.component_id}' no está en el AST actual.")
     if body.status not in ("SUGGESTED", "CONFIRMED", "BROKEN", "UNKNOWN"):
-        raise HTTPException(422, f"Invalid status '{body.status}'.")
+        raise HTTPException(422, f"Estado inválido: '{body.status}'.")
     # prevent silent duplicates of the exact same edge
     for existing in store.list_bindings(ws_id):
         if (existing["component_id"] == body.component_id
                 and existing["event"] == body.event
                 and existing["target_capability"] == body.target_capability):
             raise HTTPException(409, {
-                "message": "An identical binding already exists.",
+                "message": "Ya existe un binding idéntico.",
                 "binding_id": existing["binding_id"]})
     binding = store.create_binding(ws_id, body.model_dump())
     # keep AST events in sync
@@ -126,10 +126,10 @@ def update_binding(ws_id: str, binding_id: str, body: BindingUpdate) -> dict[str
     store = get_store()
     changes = body.model_dump(exclude_none=True)
     if "status" in changes and changes["status"] not in ("SUGGESTED", "CONFIRMED", "BROKEN", "UNKNOWN"):
-        raise HTTPException(422, f"Invalid status '{changes['status']}'.")
+        raise HTTPException(422, f"Estado inválido: '{changes['status']}'.")
     updated = store.update_binding(ws_id, binding_id, changes)
     if updated is None:
-        raise HTTPException(404, "Binding not found in this workspace.")
+        raise HTTPException(404, "Binding no encontrado en este workspace.")
     _sync_ast_events(store, ws_id)
     return updated
 
@@ -138,7 +138,7 @@ def update_binding(ws_id: str, binding_id: str, body: BindingUpdate) -> dict[str
 def delete_binding(ws_id: str, binding_id: str) -> None:
     store = get_store()
     if not store.delete_binding(ws_id, binding_id):
-        raise HTTPException(404, "Binding not found in this workspace.")
+        raise HTTPException(404, "Binding no encontrado en este workspace.")
     _sync_ast_events(store, ws_id)
 
 

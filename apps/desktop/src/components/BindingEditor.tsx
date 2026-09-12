@@ -168,16 +168,16 @@ function BindingForm({ binding, wsId, caps, onSaved, onCancel }: {
     <div className="binding-form">
       <div className="insp-label">EDITAR BINDING</div>
       <div className="kv"><span>SOURCE</span><code>{b.component_id}</code></div>
-      <label className="field"><span>Event</span>
+      <label className="field"><span>Evento</span>
         <select value={b.event} onChange={(e) => patch({ event: e.target.value })}>
           {["onClick", "onChange", "onSubmit", "onInput", "onFocus", "onBlur"].map((ev) =>
             <option key={ev}>{ev}</option>)}
         </select>
       </label>
-      <label className="field"><span>Target</span>
+      <label className="field"><span>Destino</span>
         <input value={cap?.qualified_name ?? b.target_capability} readOnly />
       </label>
-      <div className="field"><span>Status</span>
+      <div className="field"><span>Estado</span>
         <div className="status-picker">
           {(["SUGGESTED", "CONFIRMED", "BROKEN", "UNKNOWN"] as const).map((s) => (
             <button key={s} className={`btn-mini ${b.status === s ? "btn-primary" : ""}`}
@@ -186,7 +186,7 @@ function BindingForm({ binding, wsId, caps, onSaved, onCancel }: {
         </div>
       </div>
 
-      <div className="insp-label">INPUTS</div>
+      <div className="insp-label">ENTRADAS</div>
       {(cap?.inputs ?? []).map((p) => {
         const m = b.input_mapping.find((x) => x.target === p.name);
         return (
@@ -202,7 +202,7 @@ function BindingForm({ binding, wsId, caps, onSaved, onCancel }: {
         );
       })}
 
-      <div className="insp-label">OUTPUTS</div>
+      <div className="insp-label">SALIDAS</div>
       {b.output_mapping.map((m, i) => (
         <div className="mapping-row" key={i}>
           <code>{m.source}</code>
@@ -215,11 +215,11 @@ function BindingForm({ binding, wsId, caps, onSaved, onCancel }: {
         </div>
       ))}
 
-      <div className="insp-label">LOADING / ERROR</div>
-      <label className="field"><span>Loading state</span>
+      <div className="insp-label">CARGA / ERROR</div>
+      <label className="field"><span>Estado de carga</span>
         <input value={b.loading_mapping} onChange={(e) => patch({ loading_mapping: e.target.value })} />
       </label>
-      <label className="field"><span>Error state</span>
+      <label className="field"><span>Estado de error</span>
         <input value={b.error_mapping} onChange={(e) => patch({ error_mapping: e.target.value })} />
       </label>
 

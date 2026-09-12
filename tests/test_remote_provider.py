@@ -56,7 +56,7 @@ def test_unconfigured_provider_raises(monkeypatch):
         OpenAICompatibleVisionProvider()
         raise AssertionError("should require configuration")
     except RuntimeError as e:
-        assert "not configured" in str(e)
+        assert "no está configurado" in str(e)
 
 
 def test_remote_provider_parses_and_classifies(monkeypatch):

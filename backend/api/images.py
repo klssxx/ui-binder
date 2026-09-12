@@ -21,14 +21,14 @@ router = APIRouter(tags=["images"])
 def _save_image(ws_id: str, data: bytes, filename: str, role: str) -> dict[str, Any]:
     store = get_store()
     if len(data) > config.MAX_IMAGE_BYTES:
-        raise HTTPException(413, f"Image too large (> {config.MAX_IMAGE_BYTES // (1024*1024)} MB).")
+        raise HTTPException(413, f"Imagen demasiado grande (> {config.MAX_IMAGE_BYTES // (1024*1024)} MB).")
     try:
         img = Image.open(io.BytesIO(data))
         img.load()
     except (UnidentifiedImageError, OSError) as exc:
-        raise HTTPException(422, f"Invalid or unsupported image: {exc}") from exc
+        raise HTTPException(422, f"Imagen inválida o no soportada: {exc}") from exc
     if img.format not in config.ALLOWED_IMAGE_FORMATS:
-        raise HTTPException(422, f"Format '{img.format}' not supported (PNG/JPEG/WEBP).")
+        raise HTTPException(422, f"Formato '{img.format}' no soportado (PNG/JPEG/WEBP).")
 
     ws_dir = config.workspaces_root() / ws_id / "images"
     ws_dir.mkdir(parents=True, exist_ok=True)
@@ -49,16 +49,27 @@ def _save_image(ws_id: str, data: bytes, filename: str, role: str) -> dict[str, 
 @router.post("/workspaces/{ws_id}/images", status_code=201)
 async def upload_image(ws_id: str, file: UploadFile = File(...), role: str = "reference") -> dict:
     if not get_store().workspace_exists(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     data = await file.read()
     return _save_image(ws_id, data, file.filename or "upload.png", role)
+
+
+@router.get("/workspaces/{ws_id}/reference-image")
+def reference_image(ws_id: str) -> dict[str, Any]:
+    store = get_store()
+    if not store.workspace_exists(ws_id):
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
+    img = store.get_reference_image(ws_id)
+    if img is None:
+        raise HTTPException(404, "Este workspace aún no tiene imagen de referencia.")
+    return img
 
 
 @router.get("/images/{image_id}")
 def image_meta(image_id: str) -> dict[str, Any]:
     img = get_store().get_image(image_id)
     if img is None:
-        raise HTTPException(404, "Image not found.")
+        raise HTTPException(404, "Imagen no encontrada.")
     return img
 
 
@@ -66,8 +77,8 @@ def image_meta(image_id: str) -> dict[str, Any]:
 def image_file(image_id: str) -> FileResponse:
     img = get_store().get_image(image_id)
     if img is None:
-        raise HTTPException(404, "Image not found.")
+        raise HTTPException(404, "Imagen no encontrada.")
     path = Path(img["path"])
     if not path.is_file():
-        raise HTTPException(410, "Image file missing on disk.")
+        raise HTTPException(410, "El archivo de la imagen no está en disco.")
     return FileResponse(path, media_type=f"image/{img['format'].lower()}")

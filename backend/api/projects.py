@@ -31,7 +31,7 @@ class AnalyzeProjectResponse(BaseModel):
 def import_project(ws_id: str, body: ImportRequest) -> dict[str, Any]:
     store = get_store()
     if not store.workspace_exists(ws_id):
-        raise HTTPException(404, f"Workspace '{ws_id}' not found.")
+        raise HTTPException(404, f"Workspace '{ws_id}' no existe.")
     ok, why = is_safe_project_path(body.path)
     if not ok:
         raise HTTPException(422, why)
@@ -85,10 +85,10 @@ def analyze_project(ws_id: str) -> AnalyzeProjectResponse:
     store = get_store()
     project = store.get_project(ws_id)
     if project is None:
-        raise HTTPException(409, "No project imported yet. Import one first.")
+        raise HTTPException(409, "Aún no hay proyecto importado: importa uno primero.")
     root = Path(project["path"])
     if not root.is_dir():
-        raise HTTPException(410, f"Imported project path no longer exists: {root}")
+        raise HTTPException(410, f"La ruta del proyecto importado ya no existe: {root}")
 
     scan = {"root": str(root),
             "source_files": [{"rel_path": f["rel_path"], "language": f["language"]}

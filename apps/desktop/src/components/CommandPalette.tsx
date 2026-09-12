@@ -12,25 +12,25 @@ export function CommandPalette({ actions, onClose }: { actions: ToolbarActions; 
   const editor = useEditor();
 
   const commands = useMemo<Command[]>(() => [
-    { id: "import-screenshot", label: "Import screenshot", hint: "imagen de referencia",
+    { id: "import-screenshot", label: "Importar screenshot", hint: "imagen de referencia",
       run: () => (document.querySelector<HTMLInputElement>(".toolbar input[type=file]")?.click()) },
-    { id: "analyze-ui", label: "Analyze UI", hint: "reconstruir desde screenshot", run: actions.analyzeUi },
-    { id: "import-project", label: "Import project", hint: "ruta del proyecto externo", run: actions.importProject },
-    { id: "analyze-project", label: "Analyze project", hint: "capabilities + grafo", run: actions.analyzeProject },
-    { id: "check-bindings", label: "Check bindings", hint: "verificar targets rotos", run: async () => {
+    { id: "analyze-ui", label: "Analizar UI", hint: "reconstruir desde screenshot", run: actions.analyzeUi },
+    { id: "import-project", label: "Importar proyecto", hint: "ruta del proyecto externo", run: actions.importProject },
+    { id: "analyze-project", label: "Analizar proyecto", hint: "capacidades + grafo", run: actions.analyzeProject },
+    { id: "check-bindings", label: "Comprobar bindings", hint: "verificar destinos rotos", run: async () => {
       const ws = editor.state.workspace;
       if (ws) await api.verifyBindings(ws.id);
     } },
-    { id: "check-orphans", label: "Check orphans", hint: "cobertura funcional", run: actions.verify },
-    { id: "visual-diff", label: "Run visual diff", hint: "subir render", run: actions.verify },
-    { id: "export", label: "Export project", hint: "directorio nuevo y vacío", run: actions.exportProject },
-    { id: "save", label: "Save UI document", hint: "Ctrl+S", run: actions.save },
-    { id: "snapshot", label: "Create snapshot", run: actions.snapshot },
-    { id: "preview", label: "Toggle preview", run: actions.togglePreview },
+    { id: "check-orphans", label: "Comprobar huérfanos", hint: "cobertura funcional", run: actions.verify },
+    { id: "visual-diff", label: "Comparación visual", hint: "subir render", run: actions.verify },
+    { id: "export", label: "Exportar proyecto", hint: "directorio nuevo y vacío", run: actions.exportProject },
+    { id: "save", label: "Guardar documento UI", hint: "Ctrl+S", run: actions.save },
+    { id: "snapshot", label: "Crear snapshot", run: actions.snapshot },
+    { id: "preview", label: "Alternar previsualización", run: actions.togglePreview },
     { id: "undo", label: "Undo", hint: "Ctrl+Z", run: editor.undo },
     { id: "redo", label: "Redo", hint: "Ctrl+Y", run: editor.redo },
-    { id: "new-workspace", label: "New workspace", run: actions.newWorkspace },
-    { id: "switch-workspace", label: "Switch workspace", run: actions.switchWorkspace },
+    { id: "new-workspace", label: "Nuevo workspace", run: actions.newWorkspace },
+    { id: "switch-workspace", label: "Cambiar de workspace", run: actions.switchWorkspace },
   ], [actions, editor]);
 
   const filtered = commands.filter((c) =>
@@ -90,14 +90,14 @@ export function SearchOverlay({ onClose, onSelectComponent }: {
   }, [q, ws]);
 
   const groups: [string, string][] = [
-    ["components", "UI"], ["capabilities", "Capabilities"], ["routes", "API"],
+    ["components", "UI"], ["capabilities", "Capacidades"], ["routes", "API"],
     ["bindings", "Bindings"], ["files", "Files"],
   ];
 
   return (
     <div className="overlay" onPointerDown={onClose}>
       <div className="palette palette-wide" onPointerDown={(e) => e.stopPropagation()}>
-        <input autoFocus className="palette-input" placeholder="Buscar en todo: evaluate, generar, /api…"
+        <input autoFocus className="palette-input" placeholder="Buscar en todo: evaluar, generar, /api…"
           value={q} onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Escape") onClose(); }} />
         <div className="palette-list">

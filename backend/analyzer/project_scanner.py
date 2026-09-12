@@ -19,7 +19,7 @@ def scan_project(root: Path) -> dict[str, Any]:
     """Index a project directory. Never writes, never executes anything."""
     root = root.resolve()
     if not root.is_dir():
-        raise ValueError(f"Not a directory: {root}")
+        raise ValueError(f"No es un directorio: {root}")
 
     files: list[dict[str, Any]] = []
     languages: dict[str, int] = {}

@@ -27,37 +27,37 @@ def ensure_inside(root: Path, candidate: Path) -> Path:
 def is_safe_project_path(path_str: str) -> tuple[bool, str]:
     """Validate a user-supplied project directory for READ-ONLY import."""
     if not path_str or not path_str.strip():
-        return False, "Empty path."
+        return False, "Ruta vacía."
     p = Path(path_str.strip().strip('"'))
     if not p.exists():
-        return False, f"Path does not exist: {p}"
+        return False, f"La ruta no existe: {p}"
     if not p.is_dir():
-        return False, f"Path is not a directory: {p}"
+        return False, f"La ruta no es un directorio: {p}"
     resolved = str(p.resolve()).lower()
     for forbidden in _FORBIDDEN_PROJECT_PARENTS:
         if resolved == forbidden or resolved.startswith(forbidden + "\\"):
-            return False, "System directories cannot be imported."
+            return False, "No se pueden importar directorios del sistema."
     # Windows drive roots like C:\ are too broad to index meaningfully.
     if p.expanduser().absolute().resolve().parent == p.expanduser().absolute().resolve():
-        return False, "Drive roots cannot be imported; pick a project folder."
+        return False, "No se puede importar una raíz de unidad; elige una carpeta de proyecto."
     return True, "ok"
 
 
 def is_safe_export_target(target: Path, source_project: Path | None) -> tuple[bool, str]:
     """Export must write to a fresh directory, never into the imported project."""
     if not target.is_absolute():
-        return False, "Export target must be an absolute path."
+        return False, "El destino de exportación debe ser una ruta absoluta."
     if source_project is not None:
         src = source_project.resolve()
         tgt = target.resolve()
         if tgt == src or src in tgt.parents or tgt in src.parents:
-            return False, "Export target must not overlap the imported project."
+            return False, "El destino de exportación no puede solaparse con el proyecto importado."
     if target.exists():
         if not target.is_dir():
-            return False, "Export target exists and is not a directory."
+            return False, "El destino de exportación existe y no es un directorio."
         if any(target.iterdir()):
-            return False, "Export target directory is not empty."
+            return False, "El directorio de destino de la exportación no está vacío."
     parent = target.parent
     if not parent.exists():
-        return False, f"Export target parent does not exist: {parent}"
+        return False, f"El directorio padre del destino no existe: {parent}"
     return True, "ok"

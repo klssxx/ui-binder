@@ -30,11 +30,11 @@ def _load_document(store, ws_id: str) -> UIDocument:
             "action": "Restaura un snapshot o vuelve a ejecutar Analyze UI.",
         }) from exc
     if row is None:
-        raise HTTPException(409, "No UI document. Run Analyze UI first.")
+        raise HTTPException(409, "Aún no hay documento UI: ejecuta antes ANALYZE UI.")
     try:
         return UIDocument.model_validate(row["json"]["ui"])
     except Exception as exc:
-        raise HTTPException(422, f"Persisted UI document is invalid: {exc}") from exc
+        raise HTTPException(422, f"El documento UI persistido no es válido: {exc}") from exc
 
 
 @router.get("/workspaces/{ws_id}/export-plan")
