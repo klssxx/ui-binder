@@ -1,6 +1,6 @@
 ---
 name: ui-binder
-description: Reconstrucción de UI desde screenshots, análisis read-only de proyectos, bindings visuales componente↔capability y verificación de fidelidad con UI Binder (INNOVATIONS/TOOLS/UI_BINDER).
+description: Reconstrucción de UI desde screenshots, análisis read-only de proyectos, bindings visuales componente↔capability y verificación de fidelidad con UI Binder (INTERESANTE/UIEDITION).
 ---
 
 # SKILL — UI BINDER
@@ -14,7 +14,7 @@ realizar un export con UI Binder.
 
 ## Contexto del repositorio
 
-- Raíz: `C:\Users\KLSX\Music\INNOVATIONS\TOOLS\UI_BINDER`
+- Raíz: `C:\Users\KLSX\Music\INTERESANTE\UIEDITION` (traslado desde `INNOVATIONS\TOOLS\UI_BINDER` el 2026-09-12; mismo repo, historial intacto)
 - Stack: FastAPI + SQLite (backend), React/TS/Vite (frontend), visión OpenCV,
   AST Python (`ast`) y JS/TS (Babel vía Node bridge), pywebview/PyInstaller
   (escritorio) + Tauri preparado (ver docs/DECISIONS.md D1).
