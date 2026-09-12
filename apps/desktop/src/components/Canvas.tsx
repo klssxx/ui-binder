@@ -1,6 +1,6 @@
-/** Visual canvas: renders the UI AST as absolutely-positioned nodes with
- *  select / move / resize / inline text editing. Drag delta lives in state;
- *  the AST is mutated once on pointer-up so undo history stays clean. */
+/** Lienzo: AST como nodos absolutos + imagen de referencia + herramientas
+ *  (puntero / recuadro / lazo) + edición inline. El delta de arrastre vive en
+ *  estado local; el AST se muta una sola vez al soltar (historia limpia). */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useEditor } from "../state/editorStore";
@@ -8,6 +8,17 @@ import type { BBox, UIComponent } from "../types";
 
 const TEXT_TYPES = new Set(["text", "heading", "button", "input", "textarea", "select"]);
 const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
+const CONTAINER_TYPES = ["container", "panel", "card", "sidebar", "navbar", "modal", "tabs"];
+const POPOVER_TYPES = ["button", "input", "textarea", "text", "heading", "panel", "card",
+  "container", "image", "icon", "select", "checkbox", "radio", "table", "chart", "divider", "custom"];
+
+export type Tool = "select" | "rect" | "lasso";
+
+interface Selection {
+  kind: "rect" | "lasso";
+  x0: number; y0: number; x1: number; y1: number;
+  points: { x: number; y: number }[];
+}
 
 interface DragState {
   mode: "move" | "resize";
@@ -29,15 +40,21 @@ export function liveResize(origin: BBox, handle: string, dx: number, dy: number)
   return { x, y, width, height };
 }
 
-export function Canvas({ reference }: { reference: { id: string; width: number; height: number } | null }) {
-  const referenceUrl = reference ? api.referenceImageUrl(reference.id) : null;
+export function Canvas({ reference }: {
+  reference: { id: string; width: number; height: number } | null;
+}) {
   const editor = useEditor();
   const { doc } = editor.state;
+  const referenceUrl = reference ? api.referenceImageUrl(reference.id) : null;
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   const [zoom, setZoom] = useState(1);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [showReference, setShowReference] = useState(true);
+  const [tool, setTool] = useState<Tool>("select");
+  const [selection, setSelection] = useState<Selection | null>(null);
+  const [pending, setPending] = useState<{ bbox: BBox; lasso?: { x: number; y: number }[] } | null>(null);
 
   const stageW = doc?.screen.width ?? reference?.width ?? 1280;
   const stageH = doc?.screen.height ?? reference?.height ?? 800;
@@ -45,10 +62,49 @@ export function Canvas({ reference }: { reference: { id: string; width: number; 
   useLayoutEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
-    const fit = Math.min(1, (el.clientWidth - 64) / stageW,
-      (el.clientHeight - 64) / stageH);
+    const fit = Math.min(1, (el.clientWidth - 64) / stageW, (el.clientHeight - 64) / stageH);
     setZoom(Math.max(0.15, Math.round(fit * 100) / 100));
   }, [doc, stageW, stageH]);
+
+  const toStage = (e: React.PointerEvent | PointerEvent) => {
+    const rect = stageRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom };
+  };
+
+  const smallestContainer = (b: BBox): string | null => {
+    const comps = editor.state.doc?.components ?? [];
+    let best: string | null = null;
+    let bestArea = Infinity;
+    for (const c of comps) {
+      const o = c.bbox;
+      const contains = o.x - 2 <= b.x && o.y - 2 <= b.y
+        && o.x + o.width + 2 >= b.x + b.width
+        && o.y + o.height + 2 >= b.y + b.height;
+      if (contains && CONTAINER_TYPES.includes(c.type) && o.width * o.height < bestArea) {
+        best = c.id;
+        bestArea = o.width * o.height;
+      }
+    }
+    return best;
+  };
+
+  const finishSelection = useCallback(() => {
+    setSelection((s) => {
+      if (!s) return null;
+      const x = Math.min(s.x0, s.x1);
+      const y = Math.min(s.y0, s.y1);
+      const width = Math.abs(s.x1 - s.x0);
+      const height = Math.abs(s.y1 - s.y0);
+      if (width >= 8 && height >= 8) {
+        setPending({
+          bbox: { x: Math.round(x), y: Math.round(y), width: Math.round(width), height: Math.round(height) },
+          lasso: s.kind === "lasso" ? s.points.slice() : undefined,
+        });
+      }
+      return null;
+    });
+  }, []);
 
   const commit = useCallback(() => {
     if (!drag) return;
@@ -72,6 +128,22 @@ export function Canvas({ reference }: { reference: { id: string; width: number; 
   }, [drag, editor]);
 
   useEffect(() => {
+    if (!selection) return;
+    const onMove = (e: PointerEvent) => {
+      const p = toStage(e);
+      setSelection((s) => (s ? { ...s, x1: p.x, y1: p.y, points: [...s.points, p] } : s));
+    };
+    const onUp = () => finishSelection();
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selection, zoom, finishSelection]);
+
+  useEffect(() => {
     if (!drag) return;
     const onMove = (e: PointerEvent) => {
       const dx = (e.clientX - drag.startX) / zoom;
@@ -87,34 +159,88 @@ export function Canvas({ reference }: { reference: { id: string; width: number; 
     };
   }, [drag, zoom, commit]);
 
+  const startSelection = (e: React.PointerEvent) => {
+    if (tool === "select" || e.button !== 0) return;
+    const p = toStage(e);
+    setSelection({ kind: tool, x0: p.x, y0: p.y, x1: p.x, y1: p.y, points: [p] });
+  };
+
+  const selectionOverlay = selection && (
+    selection.kind === "rect" || selection.points.length < 3 ? (
+      <div className="selection-rect" style={{
+        left: Math.min(selection.x0, selection.x1),
+        top: Math.min(selection.y0, selection.y1),
+        width: Math.abs(selection.x1 - selection.x0),
+        height: Math.abs(selection.y1 - selection.y0),
+      }} />
+    ) : (
+      <svg className="selection-lasso" style={{ left: 0, top: 0, width: stageW, height: stageH }}>
+        <polygon points={selection.points.map((p) => `${p.x},${p.y}`).join(" ")}
+          fill="rgba(79,140,255,0.12)" stroke="var(--accent)" strokeWidth="1.5" />
+      </svg>
+    )
+  );
+
+  const palette = (
+    <div className="tool-palette" onPointerDown={(e) => e.stopPropagation()}>
+      {([
+        ["select", "▶", "Puntero: seleccionar y mover componentes"],
+        ["rect", "▭", "Recuadro: selecciona un área y conviértela en componente"],
+        ["lasso", "✎", "Lazo: selección de forma libre"],
+      ] as [Tool, string, string][]).map(([tl, icon, title]) => (
+        <button key={tl} className={`tool-palette-btn ${tool === tl ? "tool-palette-active" : ""}`}
+          title={title} onClick={() => setTool(tl)}>{icon}</button>
+      ))}
+    </div>
+  );
+
+  const zoomBar = (
+    <div className="canvas-zoom">
+      {Math.round(zoom * 100)}%
+      {referenceUrl && (
+        <button className={`ref-toggle ${showReference ? "ref-toggle-on" : ""}`}
+          onClick={(e) => { e.stopPropagation(); setShowReference((v) => !v); }}
+          title="Mostrar u ocultar la imagen de referencia como fondo">
+          referencia
+        </button>
+      )}
+    </div>
+  );
+
   if (!doc) {
     return (
       <div className="canvas-scroll" ref={viewportRef}
-        onPointerDown={() => { editor.select(null); setEditingId(null); }}>
-        <div className="canvas-zoom">
-          {Math.round(zoom * 100)}%
-          {referenceUrl && (
-            <button className={`ref-toggle ${showReference ? "ref-toggle-on" : ""}`}
-              onClick={(e) => { e.stopPropagation(); setShowReference((v) => !v); }}
-              title="Mostrar u ocultar la imagen de referencia como fondo">
-              referencia
-            </button>
-          )}
-        </div>
-        <div className="canvas-stage" style={{
-          width: stageW, height: stageH,
-          background: "#101216",
+        onPointerDown={(e) => { editor.select(null); setEditingId(null); startSelection(e); }}>
+        {palette}
+        {zoomBar}
+        <div className="canvas-stage" ref={stageRef} style={{
+          width: stageW, height: stageH, background: "#101216",
           transform: `scale(${zoom})`, transformOrigin: "top left",
         }}>
           {referenceUrl && showReference && (
             <img className="canvas-reference" src={referenceUrl}
               alt="imagen de referencia" draggable={false} style={{ opacity: 1 }} />
           )}
+          {selectionOverlay}
           <div className="canvas-empty-overlay">
             <h2>Imagen importada — sin reconstruir</h2>
-            <p>Pulsa <strong>ANALIZAR UI</strong> para detectar los componentes.</p>
+            <p>Pulsa <strong>ANALIZAR UI</strong> para detectar componentes, o usa
+              <strong> ▭ / ✎ </strong> para trazar los tuyos sobre la imagen.</p>
           </div>
         </div>
+        {pending && (
+          <TypePopover pending={pending} onCancel={() => setPending(null)}
+            onCreate={(type) => {
+              const id = editor.addComponent(type, "screen", pending.bbox);
+              editor.updateComponent(id, {
+                metadata: {
+                  confidence: 1.0, source: "manual",
+                  ...(pending.lasso ? { lasso: pending.lasso } : {}),
+                },
+              });
+              setPending(null); editor.select(id); setTool("select");
+            }} />
+        )}
       </div>
     );
   }
@@ -127,49 +253,24 @@ export function Canvas({ reference }: { reference: { id: string; width: number; 
   };
 
   return (
-    <div
-      className="canvas-scroll"
-      ref={viewportRef}
-      onPointerDown={() => { editor.select(null); setEditingId(null); }}
-    >
-      <div className="canvas-zoom">
-        {Math.round(zoom * 100)}%
-        {referenceUrl && (
-          <button
-            className={`ref-toggle ${showReference ? "ref-toggle-on" : ""}`}
-            onClick={(e) => { e.stopPropagation(); setShowReference((v) => !v); }}
-            title="Mostrar u ocultar la imagen de referencia como fondo"
-          >
-            referencia
-          </button>
-        )}
-      </div>
-      <div
-        className="canvas-stage"
-        style={{
-          width: stageW,
-          height: stageH,
-          background: doc.screen.background ?? "#101216",
-          transform: `scale(${zoom})`,
-          transformOrigin: "top left",
-        }}
-      >
+    <div className="canvas-scroll" ref={viewportRef}
+      onPointerDown={(e) => { editor.select(null); setEditingId(null); startSelection(e); }}>
+      {palette}
+      {zoomBar}
+      <div className="canvas-stage" ref={stageRef} style={{
+        width: stageW, height: stageH,
+        background: doc.screen.background ?? "#101216",
+        transform: `scale(${zoom})`, transformOrigin: "top left",
+      }}>
         {referenceUrl && showReference && (
-          <img
-            className="canvas-reference"
-            src={referenceUrl}
-            alt="imagen de referencia"
-            draggable={false}
-          />
+          <img className="canvas-reference" src={referenceUrl} alt="imagen de referencia" draggable={false} />
         )}
+        {selectionOverlay}
         {editor.childrenOf("screen").map((c) => (
-          <CanvasNode
-            key={c.id}
-            component={c}
-            liveBox={liveBox}
-            editingId={editingId}
+          <CanvasNode key={c.id} component={c} liveBox={liveBox} editingId={editingId}
             setEditingId={setEditingId}
             onStartMove={(e, c2) => {
+              if (tool !== "select") return;
               e.stopPropagation();
               editor.select(c2.id);
               setDrag({ mode: "move", id: c2.id, startX: e.clientX, startY: e.clientY, dx: 0, dy: 0 });
@@ -178,9 +279,51 @@ export function Canvas({ reference }: { reference: { id: string; width: number; 
               e.stopPropagation();
               setDrag({ mode: "resize", id: c2.id, handle, startX: e.clientX, startY: e.clientY,
                 dx: 0, dy: 0, origin: { ...c2.bbox } });
-            }}
-          />
+            }} />
         ))}
+      </div>
+      {pending && (
+        <TypePopover pending={pending} onCancel={() => setPending(null)}
+          onCreate={(type) => {
+            const parent = smallestContainer(pending.bbox);
+            const id = editor.addComponent(type, parent ?? "screen", pending.bbox);
+            editor.updateComponent(id, {
+              metadata: {
+                confidence: 1.0, source: "manual",
+                ...(pending.lasso ? { lasso: pending.lasso } : {}),
+              },
+            });
+            setPending(null); editor.select(id); setTool("select");
+          }} />
+      )}
+    </div>
+  );
+}
+
+function TypePopover({ pending, onCreate, onCancel }: {
+  pending: { bbox: BBox; lasso?: { x: number; y: number }[] };
+  onCreate: (type: UIComponent["type"]) => void;
+  onCancel: () => void;
+}) {
+  const [type, setType] = useState<UIComponent["type"]>("button");
+  return (
+    <div className="overlay overlay-transparent" onPointerDown={onCancel}>
+      <div className="modal modal-small type-popover" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="modal-title">CREAR COMPONENTE DE LA SELECCIÓN</div>
+        <div className="kv"><span>Zona</span>
+          <code>{Math.round(pending.bbox.width)}×{Math.round(pending.bbox.height)} px
+            en ({Math.round(pending.bbox.x)}, {Math.round(pending.bbox.y)})
+            {pending.lasso ? " · lazo libre" : " · recuadro"}</code>
+        </div>
+        <label className="field"><span>Tipo</span>
+          <select value={type} onChange={(e) => setType(e.target.value as UIComponent["type"])}>
+            {POPOVER_TYPES.map((tp) => <option key={tp} value={tp}>{tp}</option>)}
+          </select>
+        </label>
+        <div className="form-actions">
+          <button className="btn-mini btn-primary" onClick={() => onCreate(type)}>Crear</button>
+          <button className="btn-mini" onClick={onCancel}>Cancelar</button>
+        </div>
       </div>
     </div>
   );
@@ -208,6 +351,7 @@ function CanvasNode({ component: c, liveBox, editingId, setEditingId, onStartMov
     color: typeof c.styles.color === "string" ? c.styles.color : undefined,
     fontSize: c.styles.fontSize ? Number(c.styles.fontSize) : undefined,
     borderRadius: c.styles.radius ? Number(c.styles.radius) : undefined,
+    opacity: c.styles.opacity != null ? Number(c.styles.opacity) : undefined,
   };
 
   return (
@@ -223,18 +367,14 @@ function CanvasNode({ component: c, liveBox, editingId, setEditingId, onStartMov
       title={`${c.name} · ${c.type} · conf ${String(c.metadata.confidence ?? "?")}`}
     >
       {editing ? (
-        <input
-          className="node-inline-edit"
-          autoFocus
-          defaultValue={c.text ?? ""}
+        <input className="node-inline-edit" autoFocus defaultValue={c.text ?? ""}
           onPointerDown={(e) => e.stopPropagation()}
           onChange={(e) => editor.setText(c.id, e.target.value)}
           onBlur={() => setEditingId(null)}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === "Escape") setEditingId(null);
             e.stopPropagation();
-          }}
-        />
+          }} />
       ) : (
         c.text && <span className="node-text">{c.text}</span>
       )}
@@ -246,8 +386,7 @@ function CanvasNode({ component: c, liveBox, editingId, setEditingId, onStartMov
           setEditingId={setEditingId} onStartMove={onStartMove} onStartResize={onStartResize} />
       ))}
       {selected && !dragging && HANDLES.map((h) => (
-        <span key={h} className={`handle handle-${h}`}
-          onPointerDown={(e) => onStartResize(e, c, h)} />
+        <span key={h} className={`handle handle-${h}`} onPointerDown={(e) => onStartResize(e, c, h)} />
       ))}
     </div>
   );
