@@ -161,3 +161,15 @@ def test_spec_suggest_by_description(client, sample_app_dir):
     ws2 = client.post("/api/workspaces", json={"name": "spec2"}).json()
     assert client.post(f"/api/workspaces/{ws2['id']}/spec/suggest",
                        json={"name": "x"}).status_code == 409
+
+
+def test_fonts_endpoint(client):
+    r = client.get("/api/fonts")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["count"] >= 10
+    families = {f["family"] for f in body["fonts"]}
+    assert "system-ui" in families
+    # la segunda llamada usa la caché del proceso
+    r2 = client.get("/api/fonts")
+    assert r2.json()["cached"] is True
