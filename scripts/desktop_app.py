@@ -42,6 +42,14 @@ def _free_port() -> int:
 
 
 def main() -> int:
+    # Windowed PyInstaller exe (console=False) launched detached (e.g. `start`):
+    # stdio is None and uvicorn's logging config crashes with
+    # "Unable to configure formatter 'default'". Point them at devnull first.
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+
     os.environ.setdefault("UIBINDER_DATA_DIR",
                           os.environ.get("UIBINDER_DATA_DIR") or "")
     if not os.environ.get("UIBINDER_DATA_DIR"):
@@ -99,4 +107,14 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except Exception:
+        # Windowed exe: no console for the traceback — persist it for diagnosis.
+        import traceback
+        crash_dir = Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "UIBinder"
+        crash_dir.mkdir(parents=True, exist_ok=True)
+        (crash_dir / "crash.log").write_text(traceback.format_exc(), encoding="utf-8")
+        raise
