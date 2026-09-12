@@ -1,24 +1,25 @@
 {
-  "phase": "ROADMAP_CANDIDATE",
-  "task": "final adversarial review (qa-win) + final report",
-  "status": "IN_PROGRESS",
+  "phase": "ROADMAP_DONE",
+  "task": "v0.1.0 delivered",
+  "status": "COMPLETE",
   "last_good_state": {
-    "tests": "74 passed (pytest) + 6 passed (vitest)",
+    "commit": "see git log (final commit)",
+    "tests": "75 passed (pytest) + 6 passed (vitest) + adversarial QA 11/11",
     "typecheck": "tsc exit 0",
-    "build": "vite build exit 0; PyInstaller dist/UIBinder/UIBinder.exe smoke exit 0",
-    "committed": "pending final commit"
+    "build": "vite build exit 0; PyInstaller exe rebuilt post-fix, smoke exit 0"
   },
   "tests": {
-    "pytest": "74 passed, exit 0",
-    "vitest": "6 passed, exit 0"
+    "pytest": "75 passed, exit 0",
+    "vitest": "6 passed, exit 0",
+    "adversarial_qa": "11/11 PASS (persistencia, imágenes inválidas, rutas prohibidas, proyecto vacío, duplicados, capability fantasma, PNG truncado, export inseguro, JSON corrupto con recuperación)"
   },
   "blockers": [
     {
       "id": "tauri-msvc",
       "why": "Visual Studio 'C++ Build Tools' workload missing: link.exe fails",
-      "evidence": "cargo build log: 'note: in the Visual Studio installer, ensure the C++ build tools workload is selected'; vswhere finds no VC.Tools.x86.x64",
-      "impact": "No NSIS/MSI installer from Tauri in this environment",
-      "next_action": "Install the workload, then: npm run tauri -w apps/desktop"
+      "evidence": "cargo log: 'ensure the C++ build tools workload is selected'; vswhere: no VC.Tools.x86.x64",
+      "impact": "No hay instalador NSIS/MSI de Tauri en esta máquina; el escritorio se entrega como exe portable (WebView2)",
+      "next_action": "Instalar la workload y ejecutar: npm run tauri -w apps/desktop (src-tauri ya está completo)"
     }
   ]
 }

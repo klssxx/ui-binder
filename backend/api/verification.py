@@ -12,10 +12,22 @@ from backend.api.common import get_store
 from backend.bindings import verify_bindings
 from backend.diff.visual import compare_images
 from backend.logging_setup import log
+from backend.persistence.store import CorruptDocumentError
 from backend.verification import functional_coverage, orphan_report
 from backend.vision.heuristic import LocalHeuristicVisionProvider
 
 router = APIRouter(tags=["verification"])
+
+
+def _document_or_none(store, ws_id: str):
+    try:
+        return store.get_ui_document(ws_id)
+    except CorruptDocumentError as exc:
+        raise HTTPException(422, {
+            "message": "El documento UI persistido está corrupto; verificación incompleta.",
+            "cause": str(exc),
+            "action": "Restaura un snapshot o guarda un documento válido (PUT /ui).",
+        }) from exc
 
 
 @router.post("/workspaces/{ws_id}/verify")
@@ -25,7 +37,7 @@ def verify(ws_id: str) -> dict[str, Any]:
         raise HTTPException(404, f"Workspace '{ws_id}' not found.")
     caps = store.list_capabilities(ws_id)
     bindings = store.list_bindings(ws_id)
-    row = store.get_ui_document(ws_id)
+    row = _document_or_none(store, ws_id)
     components = (row["json"].get("ui") or {}).get("components", []) if row else []
 
     binding_results = verify_bindings(bindings, caps, components)
@@ -81,7 +93,7 @@ async def visual_diff(ws_id: str, rendered: UploadFile = File(...),
     with Image.open(ref_path) as rimg:
         rimg.load()
 
-        row = store.get_ui_document(ws_id)
+        row = _document_or_none(store, ws_id)
         regions = []
         if row:
             for c in (row["json"].get("ui") or {}).get("components", []):

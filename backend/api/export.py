@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from backend.api.common import get_store
 from backend.export import build_export_plan, export_react_project
 from backend.logging_setup import log
+from backend.persistence.store import CorruptDocumentError
 from backend.schema.ui_schema import UIDocument
 
 router = APIRouter(tags=["export"])
@@ -20,13 +21,20 @@ class ExportRequest(BaseModel):
 
 
 def _load_document(store, ws_id: str) -> UIDocument:
-    row = store.get_ui_document(ws_id)
+    try:
+        row = store.get_ui_document(ws_id)
+    except CorruptDocumentError as exc:
+        raise HTTPException(422, {
+            "message": "El documento UI persistido está corrupto; no se puede exportar.",
+            "cause": str(exc),
+            "action": "Restaura un snapshot o vuelve a ejecutar Analyze UI.",
+        }) from exc
     if row is None:
         raise HTTPException(409, "No UI document. Run Analyze UI first.")
     try:
         return UIDocument.model_validate(row["json"]["ui"])
     except Exception as exc:
-        raise HTTPException(500, f"Persisted UI document is invalid: {exc}") from exc
+        raise HTTPException(422, f"Persisted UI document is invalid: {exc}") from exc
 
 
 @router.get("/workspaces/{ws_id}/export-plan")
@@ -42,10 +50,11 @@ def do_export(ws_id: str, body: ExportRequest) -> dict[str, Any]:
     document = _load_document(store, ws_id)
     project = store.get_project(ws_id)
     source = Path(project["path"]) if project else None
-    tokens = None
-    row = store.get_ui_document(ws_id)
-    if row:
-        tokens = row["json"].get("tokens")
+    try:
+        row = store.get_ui_document(ws_id)
+        tokens = row["json"].get("tokens") if row else None
+    except CorruptDocumentError:  # unreachable if _load_document passed, kept defensive
+        tokens = None
     try:
         plan = export_react_project(document, store.list_bindings(ws_id),
                                     store.list_capabilities(ws_id), tokens,

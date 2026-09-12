@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from backend.api.common import get_store
 from backend.logging_setup import log
+from backend.persistence.store import CorruptDocumentError
 
 router = APIRouter(tags=["workspaces"])
 
@@ -69,7 +70,14 @@ def delete_workspace(ws_id: str) -> None:
 def create_snapshot(ws_id: str, body: SnapshotCreate) -> dict[str, Any]:
     if not get_store().workspace_exists(ws_id):
         raise HTTPException(404, f"Workspace '{ws_id}' not found.")
-    snap = get_store().create_snapshot(ws_id, body.label)
+    try:
+        snap = get_store().create_snapshot(ws_id, body.label)
+    except CorruptDocumentError as exc:
+        raise HTTPException(422, {
+            "message": "No se puede snapshotear un documento corrupto.",
+            "cause": str(exc),
+            "action": "Restaura un snapshot previo o guarda un documento válido primero.",
+        }) from exc
     log(ws_id, "INFO", "snapshot created", label=snap["label"])
     return {k: v for k, v in snap.items() if k != "json"}
 
@@ -81,7 +89,10 @@ def list_snapshots(ws_id: str) -> dict[str, Any]:
 
 @router.post("/workspaces/{ws_id}/snapshots/{snapshot_id}/restore")
 def restore_snapshot(ws_id: str, snapshot_id: str) -> dict[str, Any]:
-    result = get_store().restore_snapshot(ws_id, snapshot_id)
+    try:
+        result = get_store().restore_snapshot(ws_id, snapshot_id)
+    except CorruptDocumentError as exc:
+        raise HTTPException(422, {"message": "El snapshot está corrupto.", "cause": str(exc)}) from exc
     if result is None:
         raise HTTPException(404, "Snapshot not found for this workspace.")
     log(ws_id, "INFO", "snapshot restored", snapshot=snapshot_id)

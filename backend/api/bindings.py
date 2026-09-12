@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from backend.api.common import get_store
 from backend.bindings import suggest_bindings, verify_bindings
 from backend.logging_setup import log
+from backend.persistence.store import CorruptDocumentError
 from backend.schema.binding import Mapping
 
 router = APIRouter(tags=["bindings"])
@@ -46,7 +47,14 @@ class BindingUpdate(BaseModel):
 
 
 def _current_document(store, ws_id: str) -> dict:
-    row = store.get_ui_document(ws_id)
+    try:
+        row = store.get_ui_document(ws_id)
+    except CorruptDocumentError as exc:
+        raise HTTPException(422, {
+            "message": "El documento UI persistido está corrupto; no se pueden validar bindings.",
+            "cause": str(exc),
+            "action": "Restaura un snapshot o guarda un documento válido (PUT /ui).",
+        }) from exc
     if row is None:
         raise HTTPException(409, "No UI document. Run Analyze UI first.")
     return row["json"].get("ui") or {}
@@ -154,7 +162,11 @@ def verify_all(ws_id: str) -> dict[str, Any]:
 
 def _sync_ast_events(store, ws_id: str) -> None:
     """Mirror CONFIRMED bindings into component.events so the editor sees them."""
-    row = store.get_ui_document(ws_id)
+    try:
+        row = store.get_ui_document(ws_id)
+    except CorruptDocumentError as exc:
+        log(ws_id, "WARNING", "binding sync skipped: corrupt UI document", cause=str(exc))
+        return
     if row is None:
         return
     wrapper = row["json"]

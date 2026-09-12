@@ -10,11 +10,23 @@ from pydantic import BaseModel
 
 from backend.api.common import get_store
 from backend.logging_setup import log
+from backend.persistence.store import CorruptDocumentError
 from backend.schema.ui_schema import UIDocument
 from backend.vision import get_provider
 from backend.vision.tokens_extract import extract_tokens, tokens_to_design_md
 
 router = APIRouter(tags=["ui"])
+
+
+def _corrupt_422(exc: CorruptDocumentError) -> HTTPException:
+    return HTTPException(422, {
+        "message": "El documento UI persistido está corrupto.",
+        "where": "ui_documents",
+        "cause": str(exc),
+        "action": "Restaura un snapshot (POST /api/workspaces/{id}/snapshots/{snap}/restore), "
+                  "vuelve a ejecutar Analyze UI, o guarda un documento válido (PUT /ui) para "
+                  "reemplazarlo.",
+    })
 
 
 class AnalyzeRequest(BaseModel):
@@ -58,7 +70,10 @@ def analyze_ui(ws_id: str, body: AnalyzeRequest) -> dict[str, Any]:
 @router.get("/workspaces/{ws_id}/ui")
 def get_ui(ws_id: str) -> dict[str, Any]:
     store = get_store()
-    row = store.get_ui_document(ws_id)
+    try:
+        row = store.get_ui_document(ws_id)
+    except CorruptDocumentError as exc:
+        raise _corrupt_422(exc) from exc
     if row is None:
         raise HTTPException(409, "No UI document yet. Run Analyze UI first.")
     return row["json"]
@@ -77,7 +92,10 @@ def put_ui(ws_id: str, body: UIDocumentPut) -> dict[str, Any]:
     if problems:
         raise HTTPException(422, {"message": "UI document failed structural validation.",
                                   "problems": problems[:20]})
-    previous = store.get_ui_document(ws_id)
+    try:
+        previous = store.get_ui_document(ws_id)
+    except CorruptDocumentError:
+        previous = None  # a fresh valid PUT heals a corrupt document
     wrapper = {"ui": body.document.model_dump()}
     if previous and isinstance(previous["json"], dict):
         wrapper["tokens"] = previous["json"].get("tokens")
@@ -89,7 +107,10 @@ def put_ui(ws_id: str, body: UIDocumentPut) -> dict[str, Any]:
 
 @router.get("/workspaces/{ws_id}/design.md")
 def design_md(ws_id: str) -> dict[str, str]:
-    row = get_store().get_ui_document(ws_id)
+    try:
+        row = get_store().get_ui_document(ws_id)
+    except CorruptDocumentError as exc:
+        raise _corrupt_422(exc) from exc
     if row is None or not row["json"].get("design_md"):
         raise HTTPException(409, "No design tokens yet. Run Analyze UI first.")
     return {"markdown": row["json"]["design_md"]}

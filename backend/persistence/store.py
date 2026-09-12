@@ -14,6 +14,10 @@ def _uid(prefix: str) -> str:
 J = json.dumps
 
 
+class CorruptDocumentError(ValueError):
+    """Persisted UI document JSON is unreadable — needs snapshot restore or re-analysis."""
+
+
 def _loads(raw: Optional[str], default: Any) -> Any:
     if raw is None or raw == "":
         return default
@@ -128,8 +132,21 @@ class WorkspaceStore:
             ).fetchone()
         if not row:
             return None
-        doc = _loads(row["json"], {})
-        return {"json": doc, "version": row["version"], "updated_at": row["updated_at"]}
+        raw = row["json"]
+        if isinstance(raw, str) and raw.strip():
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise CorruptDocumentError(
+                    f"Persisted UI document is corrupt (version {row['version']}, "
+                    f"updated {row['updated_at']}): {exc.msg} at pos {exc.pos}. "
+                    "Restore a snapshot or re-run Analyze UI."
+                ) from exc
+            if not isinstance(parsed, dict):
+                raise CorruptDocumentError(
+                    f"Persisted UI document is not an object (version {row['version']}).")
+            return {"json": parsed, "version": row["version"], "updated_at": row["updated_at"]}
+        return {"json": _loads(raw, {}), "version": row["version"], "updated_at": row["updated_at"]}
 
     def save_ui_document(self, ws_id: str, doc: dict[str, Any]) -> None:
         now = utcnow()
@@ -182,7 +199,13 @@ class WorkspaceStore:
             ).fetchone()
         if not row:
             return None
-        self.save_ui_document(ws_id, _loads(row["json"], {}))
+        raw = row["json"]
+        try:
+            parsed = json.loads(raw) if isinstance(raw, str) and raw.strip() else (raw or {})
+        except json.JSONDecodeError as exc:
+            raise CorruptDocumentError(
+                f"Snapshot '{snapshot_id}' is corrupt: {exc.msg} at pos {exc.pos}.") from exc
+        self.save_ui_document(ws_id, parsed)
         return self.get_ui_document(ws_id)
 
     # ---------- projects ----------
