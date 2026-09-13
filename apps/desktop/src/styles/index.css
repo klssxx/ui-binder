@@ -393,6 +393,35 @@ code, .mono { font-family: var(--mono); font-size: 11px; }
 .overlay-transparent { background: #0003; }
 .type-popover { position: fixed; top: 18vh; }
 
+/* F8: inspector contextual + dock colapsable + menú toolbar */
+.insp-tabs { display: flex; gap: 4px; width: 100%; }
+.insp-tab {
+  flex: 1; padding: 5px 6px; font-size: 11px; border-radius: 5px;
+  color: var(--text-dim); border: 1px solid transparent;
+}
+.insp-tab:hover { color: var(--text); background: var(--bg2); }
+.insp-tab-active { background: var(--accent-dim); color: #fff; }
+.dock-collapsed {
+  height: 30px; flex-shrink: 0; display: flex; align-items: center; gap: 12px;
+  padding: 0 12px; background: var(--bg1); border-top: 1px solid var(--line);
+}
+.dock-toggle {
+  font-size: 11px; padding: 3px 10px; border-radius: 4px;
+  border: 1px solid var(--line); background: var(--bg2); color: var(--text);
+}
+.dock-toggle:hover { border-color: var(--accent); }
+.dock-tab-collapse { border-right: none; padding: 6px 10px; }
+.toolbar-menu-wrap { position: relative; }
+.toolbar-menu {
+  position: absolute; right: 0; top: 110%; z-index: 95; min-width: 200px;
+  background: var(--bg1); border: 1px solid var(--line-strong); border-radius: 8px;
+  box-shadow: 0 12px 40px #000c; padding: 4px; display: flex; flex-direction: column;
+}
+.toolbar-menu button {
+  text-align: left; padding: 8px 12px; border-radius: 5px; font-size: 12px;
+}
+.toolbar-menu button:hover { background: var(--accent-dim); }
+
 /* IA y fondo (F6) */
 .ai-panel { width: 420px; }
 .ai-prompt { width: 100%; font-family: inherit; resize: vertical; }

@@ -18,8 +18,9 @@ export interface ToolbarActions {
   openSearch(): void;
 }
 
-export function Toolbar({ actions, busy, health }: {
+export function Toolbar({ actions, busy, health, menuOpen, setMenuOpen }: {
   actions: ToolbarActions; busy: string | null; health: "ok" | "degraded" | "checking";
+  menuOpen: boolean; setMenuOpen: (v: boolean) => void;
 }) {
   const editor = useEditor();
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -46,9 +47,23 @@ export function Toolbar({ actions, busy, health }: {
         <ToolBtn label="Importar proyecto" onClick={actions.importProject} />
         <ToolBtn label="Analizar proyecto" onClick={actions.analyzeProject} primary />
         <ToolBtn label="Guardar" onClick={actions.save} />
-        <ToolBtn label="Verificar" onClick={actions.verify} />
-        <ToolBtn label="Previsualizar" onClick={actions.togglePreview} />
-        <ToolBtn label="Exportar" onClick={actions.exportProject} />
+        <ToolBtn label="▶ Previsualizar" onClick={actions.togglePreview} primary />
+        <div className="toolbar-menu-wrap">
+          <button className="tool-btn" title="Verificar, Exportar, Snapshot, Workspaces"
+            onClick={() => setMenuOpen(!menuOpen)}>⋯</button>
+          {menuOpen && (
+            <>
+              <div className="overlay overlay-transparent" style={{ zIndex: 90 }}
+                onPointerDown={() => setMenuOpen(false)} />
+              <div className="toolbar-menu">
+                <button onClick={() => { setMenuOpen(false); actions.verify(); }}>Verificar</button>
+                <button onClick={() => { setMenuOpen(false); actions.exportProject(); }}>Exportar…</button>
+                <button onClick={() => { setMenuOpen(false); actions.snapshot(); }}>Crear snapshot</button>
+                <button onClick={() => { setMenuOpen(false); actions.switchWorkspace(); }}>Cambiar de workspace…</button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="toolbar-right">

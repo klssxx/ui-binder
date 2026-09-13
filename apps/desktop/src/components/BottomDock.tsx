@@ -11,13 +11,16 @@ export type DockTab = "trace" | "bindings" | "capabilities" | "orphans" | "diff"
 const TABS: DockTab[] = ["spec", "trace", "bindings", "capabilities", "orphans", "diff", "logs"];
 const TAB_LABEL: Record<DockTab, string> = { spec: "SPEC", trace: "TRAZA", bindings: "BINDINGS", capabilities: "CAPACIDADES", orphans: "HUÉRFANOS", diff: "COMPARACIÓN", logs: "LOGS" };
 
-export function BottomDock({ tab, setTab, onFidelity }: {
+export function BottomDock({ tab, setTab, onFidelity, dockOpen, onToggleDock }: {
   tab: DockTab; setTab: (t: DockTab) => void;
   onFidelity?: (v: number | null) => void;
+  dockOpen?: boolean; onToggleDock?: () => void;
 }) {
   return (
     <div className="dock">
       <div className="dock-tabs">
+        <button className="dock-tab dock-tab-collapse" title="Colapsar diagnóstico"
+          onClick={() => onToggleDock?.()}>▾</button>
         {TABS.map((t) => (
           <button key={t} className={`dock-tab ${tab === t ? "dock-tab-active" : ""}`}
             onClick={() => setTab(t)}>{TAB_LABEL[t]}</button>

@@ -1,4 +1,4 @@
-/** RIGHT panel: full inspector — content, style, events/bindings, data, state. */
+/** RIGHT panel: contextual inspector with Diseño / Acción / Datos tabs (F8). */
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useEditor } from "../state/editorStore";
@@ -17,6 +17,7 @@ export const PRESETS: Record<string, [number, number]> = {
 export function Inspector() {
   const editor = useEditor();
   const c = editor.selected();
+  const [tab, setTab] = useState<"diseno" | "accion" | "datos">("diseno");
 
   if (!c) {
     const screen = editor.state.doc?.screen;
@@ -90,10 +91,41 @@ export function Inspector() {
   const band = c.metadata.source === "manual" ? "FACT"
     : conf >= 0.85 ? "HIGH" : conf >= 0.6 ? "MEDIUM" : conf > 0 ? "LOW" : "UNKNOWN";
 
+  const tabNames: [typeof tab, string][] = [
+    ["diseno", "Diseño"], ["accion", "Acción"], ["datos", "Datos"],
+  ];
   return (
     <div className="inspector">
-      <div className="panel-header"><span>INSPECTOR</span></div>
+      <div className="panel-header">
+        {c ? (
+          <div className="insp-tabs">
+            {tabNames.map(([id, label]) => (
+              <button key={id} className={`insp-tab ${tab === id ? "insp-tab-active" : ""}`}
+                onClick={() => setTab(id)}>{label}</button>
+            ))}
+          </div>
+        ) : <span>INSPECTOR</span>}
+      </div>
       <div className="inspector-body">
+        {c && tab === "accion" && (
+          <div className="insp-section">
+            <div className="insp-title">
+              <strong>{c.type.toUpperCase()}</strong> <code>{c.name}</code>
+              <span className={`conf conf-${band.toLowerCase()}`}>{band}</span>
+            </div>
+            <div className="insp-id">{c.id} · parent: {c.parent_id ?? "screen"}</div>
+          </div>
+        )}
+        {c && tab === "datos" && (
+          <div className="insp-section">
+            <div className="insp-title">
+              <strong>{c.type.toUpperCase()}</strong> <code>{c.name}</code>
+              <span className={`conf conf-${band.toLowerCase()}`}>{band}</span>
+            </div>
+            <div className="insp-id">{c.id} · parent: {c.parent_id ?? "screen"}</div>
+          </div>
+        )}
+        {c && tab === "diseno" && (
         <div className="insp-section">
           <div className="insp-title">
             <strong>{c.type.toUpperCase()}</strong> <code>{c.name}</code>
@@ -101,7 +133,10 @@ export function Inspector() {
           </div>
           <div className="insp-id">{c.id} · parent: {c.parent_id ?? "screen"}</div>
         </div>
+        )}
 
+        {c && tab === "diseno" && (
+        <>
         <div className="insp-section">
           <div className="insp-label">CONTENIDO</div>
           <label className="field"><span>Nombre</span>
@@ -157,24 +192,40 @@ export function Inspector() {
         </div>
 
         <TypographySection editor={editor} component={c} />
+        </>
+        )}
 
-        <div className="insp-section">
-          <div className="insp-label">EVENTOS</div>
-          <div className="insp-events">
-            {c.bindings.length === 0 && <span className="dim">Sin bindings. Usa SMART BIND más abajo.</span>}
-            {Object.entries(c.events).map(([k, v]) => (
-              <div key={k} className="kv"><span>{k}</span><code>{String(v)}</code></div>
-            ))}
-          </div>
-        </div>
+        {c && tab === "accion" && (
+          <>
+            <div className="insp-section">
+              <div className="insp-label">EVENTOS</div>
+              <div className="insp-events">
+                {c.bindings.length === 0 && (
+                  <span className="dim">Este elemento aún no dispara nada: conecta una acción abajo.</span>
+                )}
+                {Object.entries(c.events).map(([k, v]) => (
+                  <div key={k} className="kv"><span>{k}</span><code>{String(v)}</code></div>
+                ))}
+              </div>
+            </div>
+            <BindingEditor componentId={c.id} />
+          </>
+        )}
 
-        <BindingEditor componentId={c.id} />
-
-        <div className="insp-section">
-          <div className="insp-label">METADATOS</div>
-          <div className="kv"><span>source</span><code>{String(c.metadata.source ?? "?")}</code></div>
-          <div className="kv"><span>confidence</span><code>{conf.toFixed(3)}</code></div>
-        </div>
+        {c && tab === "datos" && (
+          <>
+            <div className="insp-section">
+              <div className="insp-label">METADATOS</div>
+              <div className="kv"><span>source</span><code>{String(c.metadata.source ?? "?")}</code></div>
+              <div className="kv"><span>confidence</span><code>{conf.toFixed(3)}</code></div>
+              <div className="kv"><span>bindings</span><code>{c.bindings.length}</code></div>
+            </div>
+            <div className="insp-section">
+              <div className="insp-label">AVANZADO</div>
+              <p className="hint">IDs, firmas y grafo completo de capacidades: dock Diagnóstico → Bindings / Capacidades.</p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -21,6 +21,8 @@ function Shell() {
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<{ kind: "info" | "error"; text: string } | null>(null);
   const [dockTab, setDockTab] = useState<DockTab>("orphans");
+  const [dockOpen, setDockOpen] = useState<boolean>(
+    () => localStorage.getItem("uibinder.dockOpen") === "1");
   const [showPalette, setShowPalette] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showWorkspaces, setShowWorkspaces] = useState(false);
@@ -139,6 +141,8 @@ function Shell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [editor, wrap, notify]);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+
   const actions: ToolbarActions = {
     newWorkspace: () => setShowWorkspaces(true),
     switchWorkspace: () => setShowWorkspaces(true),
@@ -243,7 +247,8 @@ function Shell() {
 
   return (
     <div className="app">
-      <Toolbar actions={actions} busy={busy} health={health} />
+      <Toolbar actions={actions} busy={busy} health={health}
+        menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
       <div className="main">
         <div style={{ width: treeW, flexShrink: 0, display: "flex" }}><TreePanel /></div>
         <Splitter direction="x" onDelta={(d) => setTreeW((w) => Math.min(420, Math.max(160, w + d)))} />
@@ -255,10 +260,23 @@ function Shell() {
         <Splitter direction="x" onDelta={(d) => setInspW((w) => Math.min(460, Math.max(200, w - d)))} />
         <div style={{ width: inspW, flexShrink: 0, display: "flex" }}><Inspector /></div>
       </div>
-      <Splitter direction="y" onDelta={(d) => setDockH((h) => Math.min(480, Math.max(120, h - d)))} />
-      <div style={{ height: dockH, flexShrink: 0, display: "flex" }}>
-        <BottomDock tab={dockTab} setTab={setDockTab} onFidelity={(v) => setStats((s) => ({ ...s, coverage: v }))} />
-      </div>
+      {dockOpen ? (
+        <>
+          <Splitter direction="y" onDelta={(d) => setDockH((h) => Math.min(480, Math.max(120, h - d)))} />
+          <div style={{ height: dockH, flexShrink: 0, display: "flex" }}>
+            <BottomDock tab={dockTab} setTab={setDockTab} dockOpen onToggleDock={() => {
+              setDockOpen(false); localStorage.setItem("uibinder.dockOpen", "0");
+            }} onFidelity={(v) => setStats((s) => ({ ...s, coverage: v }))} />
+          </div>
+        </>
+      ) : (
+        <div className="dock-collapsed">
+          <button className="dock-toggle" onClick={() => {
+            setDockOpen(true); localStorage.setItem("uibinder.dockOpen", "1");
+          }}>Diagnóstico ▴</button>
+          <span className="dim">bindings · capacidades · huérfanos · comparación · traza · logs · SPEC</span>
+        </div>
+      )}
       <StatusBar {...stats} />
       {toast && <div className={`toast toast-${toast.kind}`}>{toast.text}</div>}
       {showPalette && <CommandPalette actions={actions} onClose={() => setShowPalette(false)} />}

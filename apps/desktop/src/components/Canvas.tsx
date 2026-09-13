@@ -291,6 +291,22 @@ export function Canvas({ reference, onReferenceChange }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool, zoom]);
 
+  // Atajos de herramienta (F8): V seleccionar · R recuadro · L lazo · P lápiz · E borrador
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA"
+        || target.tagName === "SELECT" || target.isContentEditable)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const map: Record<string, Tool> = { v: "select", r: "rect", l: "lasso", p: "pencil", e: "eraser" };
+      const tool = map[e.key.toLowerCase()];
+      if (tool) { setTool(tool); return; }
+      if (e.key === "Escape") { setTool("select"); setSelection(null); setPending(null); setEditingId(null); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   useEffect(() => {
     if (!drag) return;
     const onMove = (e: PointerEvent) => {
