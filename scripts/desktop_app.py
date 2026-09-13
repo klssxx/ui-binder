@@ -101,7 +101,24 @@ def main() -> int:
                 pass
         threading.Thread(target=_auto_close, daemon=True).start()
 
-    webview.start()
+    # Perfil persistente del WebView2: sin esto pywebview usa modo privado
+    # (localStorage volátil) y una carpeta temporal por arranque.
+    data_dir = Path(os.environ.get("UIBINDER_DATA_DIR",
+                                   str(Path(os.environ.get("LOCALAPPDATA", str(Path.home()))) / "UIBinder")))
+    storage = data_dir / "webview-profile"
+    storage.mkdir(parents=True, exist_ok=True)
+    runlog = data_dir / "run.log"
+
+    def _runlog(msg: str) -> None:
+        try:
+            with open(runlog, "a", encoding="utf-8") as fh:
+                fh.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {msg}\n")
+        except OSError:
+            pass
+
+    _runlog(f"webview.start pid={os.getpid()} port={port}")
+    webview.start(private_mode=False, storage_path=str(storage))
+    _runlog("webview.start devolvió (ventana cerrada o GUI terminada)")
     server.should_exit = True
     return 0
 
