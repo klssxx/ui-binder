@@ -71,9 +71,21 @@ export function Canvas({ reference, onReferenceChange }: {
   });
   const [paletteDragging, setPaletteDragging] = useState(false);
   const paletteOffset = useRef({ dx: 0, dy: 0 });
-  const [pendingScroll, setPendingScroll] = useState<{ cx: number; cy: number; z: number } | null>(null);
-  const panState = useRef<{ sx: number; sy: number; sl: number; st: number } | null>(null);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [viewport, setViewport] = useState({ w: 1280, h: 800 });
+  const panState = useRef<{ sx: number; sy: number; px: number; py: number } | null>(null);
   const [panning, setPanning] = useState(false);
+
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const measure = () => setViewport({ w: el.clientWidth, h: el.clientHeight });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const stageW = doc?.screen.width ?? reference?.width ?? 1280;
   const stageH = doc?.screen.height ?? reference?.height ?? 800;
@@ -84,35 +96,24 @@ export function Canvas({ reference, onReferenceChange }: {
     if (!el) return;
     const z = Math.min(1, (el.clientWidth - 64) / stageW, (el.clientHeight - 64) / stageH);
     setZoom(Math.max(0.15, Math.round(z * 100) / 100));
-    el.scrollLeft = 0; el.scrollTop = 0;
+    setPan({ x: 0, y: 0 });
   }, [stageW, stageH]);
 
   useLayoutEffect(() => { fitAll(); }, [doc, stageW, stageH, fitAll]);
 
-  /** Zoom centrado en una caja (selección terminada) — nunca por debajo del encuadre. */
+  /** Zoom centrado en una caja (selección terminada) — por transformación. */
   const zoomToBox = useCallback((b: BBox) => {
-    const el = viewportRef.current;
-    if (!el) return;
     const pad = 70;
     const z = Math.min(3, Math.max(0.2, Math.min(
-      (el.clientWidth - pad * 2) / Math.max(b.width, 40),
-      (el.clientHeight - pad * 2) / Math.max(b.height, 40))));
+      (viewport.w - pad * 2) / Math.max(b.width, 40),
+      (viewport.h - pad * 2) / Math.max(b.height, 40))));
     const zz = Math.round(z * 100) / 100;
     setZoom(zz);
-    setPendingScroll({ cx: b.x + b.width / 2, cy: b.y + b.height / 2, z: zz });
-  }, []);
-
-  useEffect(() => {
-    if (!pendingScroll) return;
-    const el = viewportRef.current;
-    if (!el) return;
-    const frameW = stageW * pendingScroll.z, frameH = stageH * pendingScroll.z;
-    const targetX = pendingScroll.cx * pendingScroll.z - el.clientWidth / 2;
-    const targetY = pendingScroll.cy * pendingScroll.z - el.clientHeight / 2;
-    el.scrollLeft = Math.max(0, Math.min(targetX, Math.max(0, frameW - el.clientWidth)));
-    el.scrollTop = Math.max(0, Math.min(targetY, Math.max(0, frameH - el.clientHeight)));
-    setPendingScroll(null);
-  }, [pendingScroll, stageW, stageH]);
+    setPan({
+      x: viewport.w / 2 - (b.x + b.width / 2) * zz - (viewport.w - stageW * zz) / 2,
+      y: viewport.h / 2 - (b.y + b.height / 2) * zz - (viewport.h - stageH * zz) / 2,
+    });
+  }, [viewport, stageW, stageH]);
 
   /** Al soltar una selección (recuadro o lazo), encuadra la zona para verla bien. */
   useEffect(() => {
@@ -293,7 +294,7 @@ export function Canvas({ reference, onReferenceChange }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool, zoom]);
 
-  // Rueda: zoom hacia el cursor (F8.5). Ancla el punto bajo el puntero.
+  // Rueda: zoom hacia el cursor (F8.5, pan libre por transformación).
   useEffect(() => {
     const el = viewportRef.current;
     if (!el) return;
@@ -302,28 +303,25 @@ export function Canvas({ reference, onReferenceChange }: {
       const rect = el.getBoundingClientRect();
       const cx = e.clientX - rect.left;
       const cy = e.clientY - rect.top;
+      const frameLeft = pan.x + (viewport.w - stageW * zoom) / 2;
+      const frameTop = pan.y + (viewport.h - stageH * zoom) / 2;
+      const contentX = (cx - frameLeft) / zoom;
+      const contentY = (cy - frameTop) / zoom;
       const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
       const next = Math.min(4, Math.max(0.1, Math.round(zoom * factor * 100) / 100));
       if (next === zoom) return;
-      const offX = Math.max(0, (el.clientWidth - stageW * zoom) / 2);
-      const offY = Math.max(0, (el.clientHeight - stageH * zoom) / 2);
-      const contentX = (el.scrollLeft + cx - offX) / zoom;
-      const contentY = (el.scrollTop + cy - offY) / zoom;
       setZoom(next);
-      requestAnimationFrame(() => {
-        const offX2 = Math.max(0, (el.clientWidth - stageW * next) / 2);
-        const offY2 = Math.max(0, (el.clientHeight - stageH * next) / 2);
-        el.scrollLeft = Math.max(0, Math.min(contentX * next - (cx - offX2),
-          Math.max(0, stageW * next - el.clientWidth)));
-        el.scrollTop = Math.max(0, Math.min(contentY * next - (cy - offY2),
-          Math.max(0, stageH * next - el.clientHeight)));
+      setPan({
+        x: (cx - contentX * next) - (viewport.w - stageW * next) / 2,
+        y: (cy - contentY * next) - (viewport.h - stageH * next) / 2,
       });
     };
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, [zoom, stageW, stageH]);
+  }, [zoom, pan, stageW, stageH, viewport]);
 
-  // Pan: arrastrar el fondo (imagen/reference) con el puntero activo (F8.5).
+  // Pan libre (F8.5): arrastrar el fondo mueve la vista en CUALQUIER dirección,
+  // incluida la diagonal y con contenido más pequeño que el viewport.
   const isBackground = (target: EventTarget | null): boolean => {
     const el = target as HTMLElement | null;
     if (!el || !el.classList) return false;
@@ -334,12 +332,10 @@ export function Canvas({ reference, onReferenceChange }: {
 
   useEffect(() => {
     if (!panning) return;
-    const el = viewportRef.current;
-    if (!el || !panState.current) return;
     const start = panState.current;
+    if (!start) return;
     const onMove = (e: PointerEvent) => {
-      el.scrollLeft = Math.max(0, start.sl - (e.clientX - start.sx));
-      el.scrollTop = Math.max(0, start.st - (e.clientY - start.sy));
+      setPan({ x: start.px + (e.clientX - start.sx), y: start.py + (e.clientY - start.sy) });
     };
     const onUp = () => { setPanning(false); panState.current = null; };
     window.addEventListener("pointermove", onMove);
@@ -479,7 +475,7 @@ export function Canvas({ reference, onReferenceChange }: {
         editor.select(null); setEditingId(null);
         if (tool === "select" && isBackground(e.target)) {
           const el = viewportRef.current!;
-          panState.current = { sx: e.clientX, sy: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
+          panState.current = { sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y };
           setPanning(true);
           return;
         }
@@ -487,7 +483,12 @@ export function Canvas({ reference, onReferenceChange }: {
       }}>
         {palette}
         {zoomBar}
-        <div className="stage-frame" style={{ width: stageW * zoom, height: stageH * zoom }}>
+        <div className="stage-frame" style={{
+          position: "absolute",
+          left: pan.x + (viewport.w - stageW * zoom) / 2,
+          top: pan.y + (viewport.h - stageH * zoom) / 2,
+          width: stageW * zoom, height: stageH * zoom,
+        }}>
         <div className="canvas-stage" ref={stageRef} style={{
           width: stageW, height: stageH, background: "#101216",
           transform: `scale(${zoom})`, transformOrigin: "top left",
@@ -551,7 +552,7 @@ export function Canvas({ reference, onReferenceChange }: {
         editor.select(null); setEditingId(null);
         if (tool === "select" && isBackground(e.target)) {
           const el = viewportRef.current!;
-          panState.current = { sx: e.clientX, sy: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
+          panState.current = { sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y };
           setPanning(true);
           return;
         }
@@ -559,7 +560,12 @@ export function Canvas({ reference, onReferenceChange }: {
       }}>
       {palette}
       {zoomBar}
-      <div className="stage-frame" style={{ width: stageW * zoom, height: stageH * zoom }}>
+      <div className="stage-frame" style={{
+        position: "absolute",
+        left: pan.x + (viewport.w - stageW * zoom) / 2,
+        top: pan.y + (viewport.h - stageH * zoom) / 2,
+        width: stageW * zoom, height: stageH * zoom,
+      }}>
       <div className="canvas-stage" ref={stageRef} style={{
         width: stageW, height: stageH,
         background: doc.screen.background ?? "#101216",

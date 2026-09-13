@@ -120,7 +120,7 @@ code, .mono { font-family: var(--mono); font-size: 11px; }
 
 /* ---------- canvas ---------- */
 .canvas-scroll {
-  flex: 1; overflow: auto; display: flex;
+  flex: 1; overflow: hidden; display: flex;
   background:
     linear-gradient(45deg, #0d0f13 25%, transparent 25%, transparent 75%, #0d0f13 75%),
     linear-gradient(45deg, #0d0f13 25%, transparent 25%, transparent 75%, #0d0f13 75%);
@@ -128,9 +128,8 @@ code, .mono { font-family: var(--mono); font-size: 11px; }
   background-position: 0 0, 12px 12px;
   position: relative;
 }
-/* el marco mantiene el TAMAÑO EN PANTALLA del lienzo escalado: el scroll
-   funciona con zoom >100% (antes el transform no cambiaba el layout) */
-.stage-frame { margin: auto; flex-shrink: 0; position: relative; }
+/* el marco se posiciona por transformación (pan libre, sin scrollbars) */
+.stage-frame { position: absolute; flex-shrink: 0; }
 .canvas-zoom {
   position: sticky; top: 8px; left: 8px; z-index: 5; font-size: 11px;
   color: var(--text-dim); background: var(--bg1); padding: 2px 8px; border-radius: 4px;
