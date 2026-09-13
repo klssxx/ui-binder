@@ -16,9 +16,35 @@ from backend.vision import list_providers
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    _prune_history()
     log("", "INFO", "backend started", version=VERSION, data_root=str(config.get_data_root()))
     yield
     log("", "INFO", "backend stopped")
+
+
+def _prune_history() -> None:
+    """Retención de histórico: sin esto, runs/logs/trace crecen sin límite.
+
+    (Un bucle de re-verificación en el frontend llegó a hinchar la BD a 1.1 GB.)
+    Poda en cada arranque; VACUUM solo si se podó algo.
+    """
+    from backend.persistence.db import connect
+
+    limits = {"logs": 500, "verification_runs": 50, "trace_events": 200, "visual_diffs": 50}
+    try:
+        with connect() as conn:
+            pruned = 0
+            for table, keep in limits.items():
+                cur = conn.execute(
+                    f"DELETE FROM {table} WHERE id NOT IN "
+                    f"(SELECT id FROM {table} ORDER BY id DESC LIMIT {keep})")
+                pruned += cur.rowcount
+        if pruned:
+            log("", "INFO", "historical retention pruned", rows=pruned)
+            with connect() as conn:
+                conn.execute("VACUUM")
+    except Exception as exc:  # la poda nunca impide arrancar
+        log("", "WARNING", "retention prune failed", error=str(exc))
 
 
 def create_app() -> FastAPI:

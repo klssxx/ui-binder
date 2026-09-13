@@ -1,5 +1,5 @@
 /** BOTTOM dock: Trace | Bindings | Capabilities | Orphans | Diff | Logs. */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { SpecTab } from "./SpecTab";
 import { useEditor } from "../state/editorStore";
@@ -162,12 +162,20 @@ function OrphansTab({ onCoverage }: { onCoverage?: (v: number | null) => void })
     try {
       const r = await api.verify(wsId);
       setReport(r);
-      onCoverage?.(r.scores.functional_coverage);
+      onCoverageRef.current?.(r.scores.functional_coverage);
     } catch (e) { setError(String(e)); }
     finally { setBusy(false); }
-  }, [wsId, onCoverage]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsId]);
 
-  useEffect(() => { void run(); }, [run]);
+  // onCoverage llega como prop inline (identidad nueva en cada render): se usa
+  // vía ref para NO entrar en las deps de run. Si entrara, cada render de la
+  // pestaña re-dispara verify → bucle que hinchó la BD a 1.1 GB.
+  const onCoverageRef = useRef(onCoverage);
+  onCoverageRef.current = onCoverage;
+
+  // auto-verifica SOLO al cambiar de workspace; re-verificación manual: botón.
+  useEffect(() => { void run(); }, [wsId, run]);
 
   if (!wsId) return <EmptyLine>Abre un workspace.</EmptyLine>;
   if (error) return <EmptyLine>{error}</EmptyLine>;
