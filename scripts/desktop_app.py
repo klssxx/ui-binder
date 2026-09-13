@@ -86,8 +86,10 @@ def main() -> int:
     import webview
 
     url = f"http://127.0.0.1:{port}/"
+    # maximizada al abrir: evita ventanas "desencuadradas" fuera de pantalla
     window = webview.create_window(
-        "UIEDITION", url, width=1440, height=900, min_size=(1024, 640))
+        "UIEDITION", url, width=1440, height=900, min_size=(1024, 640),
+        maximized=True)
 
     smoke_ms = os.environ.get("UIBINDER_SMOKE_EXIT_MS", "").strip()
     if smoke_ms.isdigit():

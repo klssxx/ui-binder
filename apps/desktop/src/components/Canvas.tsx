@@ -72,6 +72,8 @@ export function Canvas({ reference, onReferenceChange }: {
   const [paletteDragging, setPaletteDragging] = useState(false);
   const paletteOffset = useRef({ dx: 0, dy: 0 });
   const [pendingScroll, setPendingScroll] = useState<{ cx: number; cy: number; z: number } | null>(null);
+  const panState = useRef<{ sx: number; sy: number; sl: number; st: number } | null>(null);
+  const [panning, setPanning] = useState(false);
 
   const stageW = doc?.screen.width ?? reference?.width ?? 1280;
   const stageH = doc?.screen.height ?? reference?.height ?? 800;
@@ -291,6 +293,63 @@ export function Canvas({ reference, onReferenceChange }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool, zoom]);
 
+  // Rueda: zoom hacia el cursor (F8.5). Ancla el punto bajo el puntero.
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const cx = e.clientX - rect.left;
+      const cy = e.clientY - rect.top;
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      const next = Math.min(4, Math.max(0.1, Math.round(zoom * factor * 100) / 100));
+      if (next === zoom) return;
+      const offX = Math.max(0, (el.clientWidth - stageW * zoom) / 2);
+      const offY = Math.max(0, (el.clientHeight - stageH * zoom) / 2);
+      const contentX = (el.scrollLeft + cx - offX) / zoom;
+      const contentY = (el.scrollTop + cy - offY) / zoom;
+      setZoom(next);
+      requestAnimationFrame(() => {
+        const offX2 = Math.max(0, (el.clientWidth - stageW * next) / 2);
+        const offY2 = Math.max(0, (el.clientHeight - stageH * next) / 2);
+        el.scrollLeft = Math.max(0, Math.min(contentX * next - (cx - offX2),
+          Math.max(0, stageW * next - el.clientWidth)));
+        el.scrollTop = Math.max(0, Math.min(contentY * next - (cy - offY2),
+          Math.max(0, stageH * next - el.clientHeight)));
+      });
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [zoom, stageW, stageH]);
+
+  // Pan: arrastrar el fondo (imagen/reference) con el puntero activo (F8.5).
+  const isBackground = (target: EventTarget | null): boolean => {
+    const el = target as HTMLElement | null;
+    if (!el || !el.classList) return false;
+    return el === viewportRef.current || el.classList.contains("stage-frame")
+      || el.classList.contains("canvas-stage") || el.classList.contains("canvas-reference")
+      || el.classList.contains("canvas-empty-overlay");
+  };
+
+  useEffect(() => {
+    if (!panning) return;
+    const el = viewportRef.current;
+    if (!el || !panState.current) return;
+    const start = panState.current;
+    const onMove = (e: PointerEvent) => {
+      el.scrollLeft = Math.max(0, start.sl - (e.clientX - start.sx));
+      el.scrollTop = Math.max(0, start.st - (e.clientY - start.sy));
+    };
+    const onUp = () => { setPanning(false); panState.current = null; };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [panning]);
+
   // Atajos de herramienta (F8): V seleccionar · R recuadro · L lazo · P lápiz · E borrador
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -299,6 +358,7 @@ export function Canvas({ reference, onReferenceChange }: {
         || target.tagName === "SELECT" || target.isContentEditable)) return;
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       const map: Record<string, Tool> = { v: "select", r: "rect", l: "lasso", p: "pencil", e: "eraser" };
+      if (e.ctrlKey && e.key === "0") { e.preventDefault(); fitAll(); return; }
       const tool = map[e.key.toLowerCase()];
       if (tool) { setTool(tool); return; }
       if (e.key === "Escape") { setTool("select"); setSelection(null); setPending(null); setEditingId(null); }
@@ -413,8 +473,18 @@ export function Canvas({ reference, onReferenceChange }: {
 
   if (!doc) {
     return (
-      <div className="canvas-scroll" ref={viewportRef}
-        onPointerDown={(e) => { editor.select(null); setEditingId(null); startSelection(e); }}>
+      <div className={`canvas-scroll ${tool === "select" ? "pan-ready" : ""} ${panning ? "panning" : ""}`}
+      ref={viewportRef}
+      onPointerDown={(e) => {
+        editor.select(null); setEditingId(null);
+        if (tool === "select" && isBackground(e.target)) {
+          const el = viewportRef.current!;
+          panState.current = { sx: e.clientX, sy: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
+          setPanning(true);
+          return;
+        }
+        startSelection(e);
+      }}>
         {palette}
         {zoomBar}
         <div className="stage-frame" style={{ width: stageW * zoom, height: stageH * zoom }}>
@@ -475,8 +545,18 @@ export function Canvas({ reference, onReferenceChange }: {
   };
 
   return (
-    <div className="canvas-scroll" ref={viewportRef}
-      onPointerDown={(e) => { editor.select(null); setEditingId(null); startSelection(e); }}>
+    <div className={`canvas-scroll ${tool === "select" ? "pan-ready" : ""} ${panning ? "panning" : ""}`}
+      ref={viewportRef}
+      onPointerDown={(e) => {
+        editor.select(null); setEditingId(null);
+        if (tool === "select" && isBackground(e.target)) {
+          const el = viewportRef.current!;
+          panState.current = { sx: e.clientX, sy: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
+          setPanning(true);
+          return;
+        }
+        startSelection(e);
+      }}>
       {palette}
       {zoomBar}
       <div className="stage-frame" style={{ width: stageW * zoom, height: stageH * zoom }}>

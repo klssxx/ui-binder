@@ -393,6 +393,11 @@ code, .mono { font-family: var(--mono); font-size: 11px; }
 .overlay-transparent { background: #0003; }
 .type-popover { position: fixed; top: 18vh; }
 
+/* F8.5: pan del fondo */
+.canvas-scroll.pan-ready { cursor: grab; }
+.canvas-scroll.panning { cursor: grabbing !important; user-select: none; }
+.canvas-scroll.panning * { cursor: grabbing !important; }
+
 /* F8: inspector contextual + dock colapsable + menú toolbar */
 .insp-tabs { display: flex; gap: 4px; width: 100%; }
 .insp-tab {
