@@ -46,6 +46,7 @@ def create_app() -> FastAPI:
     from .spec import router as spec_router
     from .ocr_api import router as ocr_router
     from .fonts_api import router as fonts_router
+    from .imagegen_api import router as imagegen_router
 
     @app.get("/health")
     @app.get("/api/health")
@@ -83,6 +84,7 @@ def create_app() -> FastAPI:
     app.include_router(spec_router, prefix="/api")
     app.include_router(ocr_router, prefix="/api")
     app.include_router(fonts_router, prefix="/api")
+    app.include_router(imagegen_router, prefix="/api")
     return app
 
 

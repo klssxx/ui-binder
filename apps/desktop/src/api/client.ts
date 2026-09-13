@@ -107,6 +107,14 @@ export const api = {
     call<Record<string, unknown>>(`/api/workspaces/${wsId}/export`,
       { method: "POST", ...json({ target_dir: targetDir }) }),
 
+  imagegenStatus: () => call<{ configured: boolean; provider: string; base_url: string | null; model: string | null; privacy: string }>("/api/imagegen/status"),
+  generateHero: (wsId: string, prompt: string) =>
+    call<{ image: ImageRecord; privacy: string }>(`/api/workspaces/${wsId}/imagegen/hero`,
+      { method: "POST", ...json({ prompt }) }),
+  backgroundOp: (wsId: string, op: string, params: Record<string, unknown>, imageId?: string) =>
+    call<{ image: ImageRecord; op: string }>(`/api/workspaces/${wsId}/background`,
+      { method: "POST", ...json({ op, params, image_id: imageId ?? null }) }),
+
   fonts: () => call<{ fonts: { family: string; origin: string }[]; count: number }>("/api/fonts"),
 
   ocrStatus: () => call<{ available: boolean; provider: string | null; detail: string }>("/api/ocr/status"),

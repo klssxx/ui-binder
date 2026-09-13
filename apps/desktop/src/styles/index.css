@@ -383,6 +383,15 @@ code, .mono { font-family: var(--mono); font-size: 11px; }
 .overlay-transparent { background: #0003; }
 .type-popover { position: fixed; top: 18vh; }
 
+/* IA y fondo (F6) */
+.ai-panel { width: 420px; }
+.ai-prompt { width: 100%; font-family: inherit; resize: vertical; }
+.ai-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.ok-note {
+  background: #103b28; color: #9fe8c8; border: 1px solid #1f5c40;
+  padding: 6px 8px; border-radius: 4px; font-size: 11px; margin: 6px 0;
+}
+
 /* dibujo (F5) */
 .strokes-layer { position: absolute; left: 0; top: 0; pointer-events: none; z-index: 50; }
 .tool-palette-sep { height: 1px; background: var(--line); margin: 2px 0; }

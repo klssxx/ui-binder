@@ -6,6 +6,7 @@ import { api } from "../api/client";
 import { useEditor } from "../state/editorStore";
 import type { BBox, OcrLine, Stroke, StrokePoint, UIComponent } from "../types";
 import { StrokeLayer, strokeSvg } from "./StrokeLayer";
+import { AiPanel } from "./AiPanel";
 
 const TEXT_TYPES = new Set(["text", "heading", "button", "input", "textarea", "select"]);
 const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
@@ -59,6 +60,7 @@ export function Canvas({ reference, onReferenceChange }: {
   const [selection, setSelection] = useState<Selection | null>(null);
   const [pending, setPending] = useState<{ bbox: BBox; lasso?: { x: number; y: number }[] } | null>(null);
   const [drawPoints, setDrawPoints] = useState<StrokePoint[] | null>(null);
+  const [showAi, setShowAi] = useState(false);
   const [penColor, setPenColor] = useState("#4f8cff");
   const [penWidth, setPenWidth] = useState(4);
 
@@ -291,6 +293,9 @@ export function Canvas({ reference, onReferenceChange }: {
       </select>
       <button className="tool-palette-btn" title="Borrar todos los trazos"
         onClick={() => editor.clearStrokes()}>🗑</button>
+      <div className="tool-palette-sep" />
+      <button className="tool-palette-btn" title="IA y fondo: generar héroes o alterar el fondo"
+        onClick={() => setShowAi(true)}>✨</button>
     </div>
   );
 
@@ -339,6 +344,10 @@ export function Canvas({ reference, onReferenceChange }: {
               <strong> ▭ / ✎ </strong> para trazar los tuyos sobre la imagen.</p>
           </div>
         </div>
+        {showAi && (
+          <AiPanel onClose={() => setShowAi(false)} reference={reference}
+            onReferenceChange={(img) => onReferenceChange?.(img)} />
+        )}
         {pending && (
           <TypePopover pending={pending} wsId={editor.state.workspace?.id ?? null}
             onReferenceChange={onReferenceChange} onCancel={() => setPending(null)}
@@ -585,6 +594,10 @@ function CanvasNode({ component: c, liveBox, editingId, setEditingId, onStartMov
       }}
       title={`${c.name} · ${c.type} · conf ${String(c.metadata.confidence ?? "?")}`}
     >
+      {c.type === "image" && typeof c.styles.src === "string" && !editing && (
+        <img src={c.styles.src} alt="" draggable={false}
+          style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} />
+      )}
       {editing ? (
         <input className="node-inline-edit" autoFocus defaultValue={c.text ?? ""}
           onPointerDown={(e) => e.stopPropagation()}

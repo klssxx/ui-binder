@@ -40,7 +40,12 @@ def build_export_plan(document: UIDocument, bindings: list[dict[str, Any]]) -> d
 
 def export_react_project(document: UIDocument, bindings: list[dict[str, Any]],
                          capabilities: list[dict[str, Any]], tokens: dict[str, Any] | None,
-                         target: Path, source_project: Path | None = None) -> dict[str, Any]:
+                         target: Path, source_project: Path | None = None,
+                         image_resolver=None) -> dict[str, Any]:
+    """image_resolver(image_id) -> Path | None: copia los assets referenciados
+    (styles.src = .../api/images/{id}/file) a target/assets y reescribe el src."""
+    import re as _re
+    import shutil as _shutil
     ok, why = is_safe_export_target(target, source_project)
     if not ok:
         raise ValueError(why)
@@ -66,8 +71,33 @@ def export_react_project(document: UIDocument, bindings: list[dict[str, Any]],
     (target / "src/bindings.json").write_text(
         json.dumps(bindings, ensure_ascii=False, indent=2), encoding="utf-8")
 
+    assets_copied = 0
+    if image_resolver is not None:
+        pattern = _re.compile(r"/api/images/([A-Za-z0-9_]+)/file$")
+        for comp in document.components:
+            src = comp.styles.get("src") if isinstance(comp.styles, dict) else None
+            if not isinstance(src, str):
+                continue
+            m = pattern.search(src)
+            if not m:
+                continue
+            record_path = image_resolver(m.group(1))
+            if record_path is None or not Path(record_path).is_file():
+                continue
+            (target / "assets").mkdir(exist_ok=True)
+            filename = f"{m.group(1)}{Path(record_path).suffix}"
+            _shutil.copyfile(record_path, target / "assets" / filename)
+            comp.styles["src"] = f"./assets/{filename}"
+            assets_copied += 1
+    # regenerar el código si cambió algún src (con las rutas relativas ya resueltas)
+    if assets_copied:
+        api_code, app_code = _generate_code(document, bindings)
+        (target / "src" / "api.ts").write_text(api_code, encoding="utf-8")
+        (target / "src" / "App.tsx").write_text(app_code, encoding="utf-8")
+
     plan = build_export_plan(document, bindings)
     plan["target"] = str(target)
+    plan["assets_copied"] = assets_copied
     return plan
 
 
@@ -292,7 +322,8 @@ def _render_children(parent_id: str, comps: dict[str, Any], children: dict[str, 
         if ctype == "input":
             attrs.append('type="text"')
         if ctype == "image":
-            attrs.append('src="placeholder.png"')
+            src = (comp.get("styles") or {}).get("src") or "placeholder.png"
+            attrs.append(f'src="{src}"')
             attrs.append('alt=""')
         attrs.append(f'id="{cid}"')
         attrs.append(f'data-uib-type="{ctype}"')

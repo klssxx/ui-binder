@@ -55,10 +55,18 @@ def do_export(ws_id: str, body: ExportRequest) -> dict[str, Any]:
         tokens = row["json"].get("tokens") if row else None
     except CorruptDocumentError:  # unreachable if _load_document passed, kept defensive
         tokens = None
+    def _resolver(image_id: str):
+        record = store.get_image(image_id)
+        if record is None:
+            return None
+        p = Path(record["path"])
+        return p if p.is_file() else None
+
     try:
         plan = export_react_project(document, store.list_bindings(ws_id),
                                     store.list_capabilities(ws_id), tokens,
-                                    Path(body.target_dir.strip().strip('"')), source)
+                                    Path(body.target_dir.strip().strip('"')), source,
+                                    image_resolver=_resolver)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     log(ws_id, "INFO", "project exported", target=body.target_dir,

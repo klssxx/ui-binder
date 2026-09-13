@@ -78,5 +78,10 @@ SCAN_IGNORED_DIRS = {
     ".mypy_cache", ".idea", ".vscode", "out", ".cache",
 }
 
+# Generación de imágenes opcional (F6): proveedor compatible OpenAI.
+IMAGEGEN_BASE_URL = os.environ.get("UIBINDER_IMAGEGEN_BASE_URL", "").strip()
+IMAGEGEN_MODEL = os.environ.get("UIBINDER_IMAGEGEN_MODEL", "").strip()
+IMAGEGEN_API_KEY = os.environ.get("UIBINDER_IMAGEGEN_API_KEY", "").strip()
+
 MAX_IMAGE_BYTES = 25 * 1024 * 1024
 ALLOWED_IMAGE_FORMATS = {"PNG", "JPEG", "WEBP"}
