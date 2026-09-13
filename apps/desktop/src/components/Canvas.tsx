@@ -63,17 +63,92 @@ export function Canvas({ reference, onReferenceChange }: {
   const [showAi, setShowAi] = useState(false);
   const [penColor, setPenColor] = useState("#4f8cff");
   const [penWidth, setPenWidth] = useState(4);
+  const [palettePos, setPalettePos] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem("uibinder.palettePos") ?? "null");
+      return parsed && typeof parsed.x === "number" && typeof parsed.y === "number" ? parsed : null;
+    } catch { return null; }
+  });
+  const [paletteDragging, setPaletteDragging] = useState(false);
+  const paletteOffset = useRef({ dx: 0, dy: 0 });
+  const [pendingScroll, setPendingScroll] = useState<{ cx: number; cy: number; z: number } | null>(null);
 
   const stageW = doc?.screen.width ?? reference?.width ?? 1280;
   const stageH = doc?.screen.height ?? reference?.height ?? 800;
   const allStrokes = doc?.strokes ?? [];
 
-  useLayoutEffect(() => {
+  const fitAll = useCallback(() => {
     const el = viewportRef.current;
     if (!el) return;
-    const fit = Math.min(1, (el.clientWidth - 64) / stageW, (el.clientHeight - 64) / stageH);
-    setZoom(Math.max(0.15, Math.round(fit * 100) / 100));
-  }, [doc, stageW, stageH]);
+    const z = Math.min(1, (el.clientWidth - 64) / stageW, (el.clientHeight - 64) / stageH);
+    setZoom(Math.max(0.15, Math.round(z * 100) / 100));
+    el.scrollLeft = 0; el.scrollTop = 0;
+  }, [stageW, stageH]);
+
+  useLayoutEffect(() => { fitAll(); }, [doc, stageW, stageH, fitAll]);
+
+  /** Zoom centrado en una caja (selección terminada) — nunca por debajo del encuadre. */
+  const zoomToBox = useCallback((b: BBox) => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const pad = 70;
+    const z = Math.min(3, Math.max(0.2, Math.min(
+      (el.clientWidth - pad * 2) / Math.max(b.width, 40),
+      (el.clientHeight - pad * 2) / Math.max(b.height, 40))));
+    const zz = Math.round(z * 100) / 100;
+    setZoom(zz);
+    setPendingScroll({ cx: b.x + b.width / 2, cy: b.y + b.height / 2, z: zz });
+  }, []);
+
+  useEffect(() => {
+    if (!pendingScroll) return;
+    const el = viewportRef.current;
+    if (!el) return;
+    const frameW = stageW * pendingScroll.z, frameH = stageH * pendingScroll.z;
+    const targetX = pendingScroll.cx * pendingScroll.z - el.clientWidth / 2;
+    const targetY = pendingScroll.cy * pendingScroll.z - el.clientHeight / 2;
+    el.scrollLeft = Math.max(0, Math.min(targetX, Math.max(0, frameW - el.clientWidth)));
+    el.scrollTop = Math.max(0, Math.min(targetY, Math.max(0, frameH - el.clientHeight)));
+    setPendingScroll(null);
+  }, [pendingScroll, stageW, stageH]);
+
+  /** Al soltar una selección (recuadro o lazo), encuadra la zona para verla bien. */
+  useEffect(() => {
+    if (pending) zoomToBox(pending.bbox);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending]);
+
+  // ---- paleta flotante: arrastre por el grip + memoria de posición
+  const onGripDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).parentElement!.getBoundingClientRect();
+    paletteOffset.current = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+    setPalettePos((prev) => prev ?? { x: rect.left, y: rect.top });
+    setPaletteDragging(true);
+  }, []);
+
+  useEffect(() => {
+    if (!paletteDragging) return;
+    const onMove = (e: PointerEvent) => {
+      setPalettePos({
+        x: Math.max(4, Math.min(e.clientX - paletteOffset.current.dx, window.innerWidth - 64)),
+        y: Math.max(4, Math.min(e.clientY - paletteOffset.current.dy, window.innerHeight - 90)),
+      });
+    };
+    const onUp = () => {
+      setPaletteDragging(false);
+      setPalettePos((p) => {
+        if (p) { try { localStorage.setItem("uibinder.palettePos", JSON.stringify(p)); } catch { /* noop */ } }
+        return p;
+      });
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [paletteDragging]);
 
   const toStage = (e: React.PointerEvent | PointerEvent) => {
     const rect = stageRef.current?.getBoundingClientRect();
@@ -263,7 +338,13 @@ export function Canvas({ reference, onReferenceChange }: {
   );
 
   const palette = (
-    <div className="tool-palette" onPointerDown={(e) => e.stopPropagation()}>
+    <div
+      className={`tool-palette ${palettePos ? "palette-free" : ""} ${paletteDragging ? "palette-dragging" : ""}`}
+      style={palettePos ? { left: palettePos.x, top: palettePos.y } : undefined}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <div className="palette-grip" title="Arrastra para mover la paleta a cualquier lado"
+        onPointerDown={onGripDown}>⠿</div>
       {([
         ["select", "▶", "Puntero: seleccionar y mover componentes"],
         ["rect", "▭", "Recuadro: selecciona un área y conviértela en componente"],
@@ -301,6 +382,8 @@ export function Canvas({ reference, onReferenceChange }: {
 
   const zoomBar = (
     <div className="canvas-zoom">
+      <button className="ref-toggle" title="Volver al encuadre completo"
+        onClick={(e) => { e.stopPropagation(); fitAll(); }}>ajustar</button>
       {Math.round(zoom * 100)}%
       {referenceUrl && (
         <button className={`ref-toggle ${showReference ? "ref-toggle-on" : ""}`}
@@ -318,6 +401,7 @@ export function Canvas({ reference, onReferenceChange }: {
         onPointerDown={(e) => { editor.select(null); setEditingId(null); startSelection(e); }}>
         {palette}
         {zoomBar}
+        <div className="stage-frame" style={{ width: stageW * zoom, height: stageH * zoom }}>
         <div className="canvas-stage" ref={stageRef} style={{
           width: stageW, height: stageH, background: "#101216",
           transform: `scale(${zoom})`, transformOrigin: "top left",
@@ -343,6 +427,7 @@ export function Canvas({ reference, onReferenceChange }: {
             <p>Pulsa <strong>ANALIZAR UI</strong> para detectar componentes, o usa
               <strong> ▭ / ✎ </strong> para trazar los tuyos sobre la imagen.</p>
           </div>
+        </div>
         </div>
         {showAi && (
           <AiPanel onClose={() => setShowAi(false)} reference={reference}
@@ -378,6 +463,7 @@ export function Canvas({ reference, onReferenceChange }: {
       onPointerDown={(e) => { editor.select(null); setEditingId(null); startSelection(e); }}>
       {palette}
       {zoomBar}
+      <div className="stage-frame" style={{ width: stageW * zoom, height: stageH * zoom }}>
       <div className="canvas-stage" ref={stageRef} style={{
         width: stageW, height: stageH,
         background: doc.screen.background ?? "#101216",
@@ -414,6 +500,11 @@ export function Canvas({ reference, onReferenceChange }: {
             }} />
         ))}
       </div>
+      </div>
+      {showAi && (
+        <AiPanel onClose={() => setShowAi(false)} reference={reference}
+          onReferenceChange={(img) => onReferenceChange?.(img)} />
+      )}
       {pending && (
         <TypePopover pending={pending} wsId={editor.state.workspace?.id ?? null}
             onReferenceChange={onReferenceChange} onCancel={() => setPending(null)}
