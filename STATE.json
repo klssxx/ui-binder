@@ -1,18 +1,18 @@
 {
-  "phase": "ROADMAP_DONE",
-  "task": "v0.2 — fases F0-F6 del editor visual completadas",
+  "phase": "V0.2_EDITOR_COMPLETE",
+  "task": "F0-F7 del editor visual + fixes de estabilidad; pendiente: smoke dispatcher en sesión nueva",
   "status": "COMPLETE",
   "last_good_state": {
-    "commit": "3941676 (docs: nueva raíz)",
+    "commit": "bee6089",
     "root": "C:/Users/KLSX/Music/INTERESANTE/UIEDITION",
-    "tests": "89 passed (pytest) + 6 passed (vitest); OCR verificado dentro del exe",
+    "tests": "89 pytest + 6 vitest + QA inline 11/11 (v0.2)",
     "typecheck": "tsc exit 0",
-    "build": "vite build exit 0; PyInstaller exe smoke exit 0"
+    "build": "vite build exit 0; exe con OCR verificado in situ"
   },
   "tests": {
-    "pytest": "75 passed, exit 0",
+    "pytest": "89 passed, exit 0",
     "vitest": "6 passed, exit 0",
-    "adversarial_qa": "11/11 PASS (persistencia, imágenes inválidas, rutas prohibidas, proyecto vacío, duplicados, capability fantasma, PNG truncado, export inseguro, JSON corrupto con recuperación)"
+    "adversarial_qa": "11/11 PASS (v0.2, INLINE_FALLBACK)"
   },
   "blockers": [
     {
