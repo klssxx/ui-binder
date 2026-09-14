@@ -427,6 +427,11 @@ code, .mono { font-family: var(--mono); font-size: 11px; }
 .toolbar-menu button:hover { background: var(--accent-dim); }
 
 /* IA y fondo (F6) */
+.env-example {
+  background: var(--bg0); border: 1px solid var(--line); border-radius: 4px;
+  padding: 6px 8px; font-family: var(--mono); font-size: 10px; margin: 6px 0;
+  white-space: pre-wrap; color: var(--text-dim);
+}
 .ai-panel { width: 420px; }
 .ai-prompt { width: 100%; font-family: inherit; resize: vertical; }
 .ai-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }

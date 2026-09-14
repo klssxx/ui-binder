@@ -107,7 +107,7 @@ export const api = {
     call<Record<string, unknown>>(`/api/workspaces/${wsId}/export`,
       { method: "POST", ...json({ target_dir: targetDir }) }),
 
-  imagegenStatus: () => call<{ configured: boolean; provider: string; base_url: string | null; model: string | null; privacy: string }>("/api/imagegen/status"),
+  imagegenStatus: () => call<{ configured: boolean; provider: string; base_url: string | null; model: string | null; env_file: string; privacy: string }>("/api/imagegen/status"),
   generateHero: (wsId: string, prompt: string) =>
     call<{ image: ImageRecord; privacy: string }>(`/api/workspaces/${wsId}/imagegen/hero`,
       { method: "POST", ...json({ prompt }) }),

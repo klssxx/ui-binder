@@ -87,3 +87,35 @@ def test_export_copies_image_assets(client, golden_png, tmp_path):
     assert "./assets/" in app
     files = list((target / "assets").glob("*.png"))
     assert len(files) == 1 and files[0].stat().st_size > 1000
+
+
+def test_status_reports_user_env_path(client):
+    r = client.get("/api/imagegen/status")
+    assert r.status_code == 200
+    body = r.json()
+    assert "env_file" in body
+    normalized = body["env_file"].replace("\\", "/")
+    assert normalized.endswith("UIBinder/.env")
+
+
+def test_user_env_file_loaded(tmp_path, monkeypatch):
+    import importlib
+    import backend.config as config_module
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    env = tmp_path / "UIBinder" / ".env"
+    env.parent.mkdir(parents=True)
+    env.write_text("UIBINDER_IMAGEGEN_BASE_URL=https://ejemplo/v1\n"
+                   "UIBINDER_IMAGEGEN_MODEL=cogview-4\n"
+                   "UIBINDER_IMAGEGEN_API_KEY=clave-test\n", encoding="utf-8")
+    monkeypatch.delenv("UIBINDER_IMAGEGEN_BASE_URL", raising=False)
+    monkeypatch.delenv("UIBINDER_IMAGEGEN_MODEL", raising=False)
+    monkeypatch.delenv("UIBINDER_IMAGEGEN_API_KEY", raising=False)
+    importlib.reload(config_module)
+    assert config_module.IMAGEGEN_BASE_URL == "https://ejemplo/v1"
+    assert config_module.IMAGEGEN_MODEL == "cogview-4"
+    assert config_module.IMAGEGEN_API_KEY == "clave-test"
+    # restaurar módulo para el resto de la suite
+    monkeypatch.delenv("UIBINDER_IMAGEGEN_BASE_URL")
+    monkeypatch.delenv("UIBINDER_IMAGEGEN_MODEL")
+    monkeypatch.delenv("UIBINDER_IMAGEGEN_API_KEY")
+    importlib.reload(config_module)

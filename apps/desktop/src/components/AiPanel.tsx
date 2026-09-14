@@ -26,7 +26,7 @@ export function AiPanel({ onClose, reference, onReferenceChange }: {
 }) {
   const editor = useEditor();
   const ws = editor.state.workspace;
-  const [status, setStatus] = useState<{ configured: boolean; privacy: string } | null>(null);
+  const [status, setStatus] = useState<{ configured: boolean; privacy: string; env_file?: string } | null>(null);
   const [prompt, setPrompt] = useState(HERO_PRESETS[0]);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -96,8 +96,15 @@ export function AiPanel({ onClose, reference, onReferenceChange }: {
           <p className="hint">⚠ {status.privacy}</p>
         )}
         {status && !status.configured && (
-          <p className="hint">Sin proveedor configurado (UIBINDER_IMAGEGEN_* en .env). "
-            "Las herramientas de fondo locales siguen funcionando.</p>
+          <div className="hint">
+            Sin proveedor configurado. Crea el archivo
+            <code> {status.env_file ?? "%LOCALAPPDATA%/UIBinder/.env"} </code>
+            con tres líneas:
+            <pre className="env-example">{`UIBINDER_IMAGEGEN_BASE_URL=https://.../v1
+UIBINDER_IMAGEGEN_MODEL=nombre-del-modelo
+UIBINDER_IMAGEGEN_API_KEY=tu-clave`}</pre>
+            y reinicia la app. Las herramientas de fondo locales siguen funcionando sin nube.
+          </div>
         )}
         <button className="btn btn-primary btn-block" disabled={!ws || !!busy || !status?.configured}
           onClick={() => void generate()}>

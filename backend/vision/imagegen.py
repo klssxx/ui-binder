@@ -21,6 +21,7 @@ def status() -> dict[str, Any]:
         "provider": "openai-compatible",
         "base_url": config.IMAGEGEN_BASE_URL or None,
         "model": config.IMAGEGEN_MODEL or None,
+        "env_file": str(config.user_env_file()),
         "privacy": "Al generar se envía el prompt al proveedor externo configurado. "
                    "Las herramientas de fondo locales no envían nada.",
     }

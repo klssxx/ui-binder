@@ -12,23 +12,40 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-def _load_dotenv() -> None:
-    """Minimal .env loader (no external dependency). Never overrides real env."""
-    env_file = REPO_ROOT / ".env"
-    if not env_file.is_file():
-        return
-    try:
-        for line in env_file.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, _, value = line.partition("=")
-            key, value = key.strip(), value.strip()
-            if key and key not in os.environ:
-                os.environ[key] = value
-    except OSError:
-        pass
+def user_env_file() -> Path:
+    """Archivo .env del usuario (persistente, editable, nunca dentro del repo)."""
+    local_app = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+    return Path(local_app) / "UIBinder" / ".env"
 
+
+def _load_dotenv() -> None:
+    """Minimal .env loader (no external dependency). Never overrides real env.
+
+    Orden (el primero que exista gana): LOCALAPPDATA/UIBinder/.env,
+    .env junto al exe (frozen), .env del repo (dev).
+    """
+    candidates = [user_env_file()]
+    if getattr(sys, "frozen", False):
+        candidates.append(Path(sys.executable).parent / ".env")
+    candidates.append(REPO_ROOT / ".env")
+    for env_file in candidates:
+        if not env_file.is_file():
+            continue
+        try:
+            for line in env_file.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, value = line.partition("=")
+                key, value = key.strip(), value.strip()
+                if key and key not in os.environ:
+                    os.environ[key] = value
+        except OSError:
+            pass
+        break
+
+
+import sys  # noqa: E402  (usado arriba solo en frozen)
 
 _load_dotenv()
 
