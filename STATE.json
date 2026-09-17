@@ -1,27 +1,24 @@
 {
-  "phase": "V0.3_UX_PREMIUM_F8_DONE",
-  "task": "F8 shell contextual commiteado en rama work/v0.3-ux-premium; siguiente F9 (canvas pro: multi-select, snapping, align)",
-  "status": "COMPLETE",
+  "phase": "REPAIR_HERMES_20260917",
+  "task": "Hermes forensic repair: security hardening, bug fixes, new tests",
+  "status": "IN_PROGRESS",
   "last_good_state": {
-    "commit": "bee6089",
+    "commit": "09215f9",
     "root": "C:/Users/KLSX/Music/INTERESANTE/UIEDITION",
-    "tests": "89 pytest + 6 vitest + QA inline 11/11 (v0.2)",
+    "tests": "106 pytest + 6 vitest + QA inline",
     "typecheck": "tsc exit 0",
-    "build": "vite build exit 0; exe con OCR verificado in situ"
+    "build": "vite build exit 0"
   },
   "tests": {
-    "pytest": "89 passed, exit 0",
-    "vitest": "6 passed, exit 0",
-    "adversarial_qa": "11/11 PASS (v0.2, INLINE_FALLBACK)"
+    "pytest": "106 passed, exit 0",
+    "vitest": "6 passed, exit 0"
   },
   "blockers": [
     {
       "id": "tauri-msvc",
-      "why": "Visual Studio 'C++ Build Tools' workload missing: link.exe fails",
-      "evidence": "cargo log: 'ensure the C++ build tools workload is selected'; vswhere: no VC.Tools.x86.x64",
-      "impact": "No hay instalador NSIS/MSI de Tauri en esta máquina; el escritorio se entrega como exe portable (WebView2)",
-      "next_action": "Instalar la workload y ejecutar: npm run tauri -w apps/desktop (src-tauri ya está completo)"
+      "why": "Visual Studio 'C++ Build Tools' workload missing",
+      "impact": "No hay instalador Tauri; el escritorio se entrega como exe portable (WebView2)"
     }
   ],
-  "branch": "work/v0.3-ux-premium"
+  "branch": "repair/uibinder-hermes-long-20260917"
 }
