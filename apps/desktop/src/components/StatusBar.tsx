@@ -1,5 +1,6 @@
 /** Status bar: always-visible counters (directive §61). */
 import { useEditor } from "../state/editorStore";
+import { VisionProviderSelector } from "./VisionSelector";
 
 export function StatusBar({ capabilities, bindings, broken, unbound, fidelity, coverage }: {
   capabilities: number; bindings: number; broken: number; unbound: number;
@@ -17,8 +18,8 @@ export function StatusBar({ capabilities, bindings, broken, unbound, fidelity, c
       <span>Fidelidad visual: <strong>{fidelity != null ? `${fidelity}%` : "—"}</strong></span>
       <span>Cobertura: <strong>{coverage != null ? `${coverage}%` : "—"}</strong></span>
       <span className="spacer" />
-      <span className="dim">schema v{editor.state.doc?.ui_schema_version ?? 1} ·
-        v{editor.state.lastSavedVersion}</span>
+      <VisionProviderSelector />
+      <span className="dim">schema v{editor.state.doc?.ui_schema_version ?? 1} · v{editor.state.lastSavedVersion}</span>
     </div>
   );
 }
