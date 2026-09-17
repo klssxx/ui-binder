@@ -101,11 +101,15 @@ export const api = {
       `/api/workspaces/${wsId}/visual-diff`, { method: "POST", body: form });
   },
 
-  exportPlan: (wsId: string) =>
-    call<Record<string, unknown>>(`/api/workspaces/${wsId}/export-plan`),
-  exportProject: (wsId: string, targetDir: string) =>
+  exportTargets: () =>
+    call<{ targets: { target_id: string; label: string }[] }>("/api/export-targets"),
+  exportPlan: (wsId: string, target = "react-vite-ts") =>
+    call<Record<string, unknown>>(
+      `/api/workspaces/${wsId}/export-plan?target=${encodeURIComponent(target)}`,
+    ),
+  exportProject: (wsId: string, targetDir: string, target = "react-vite-ts") =>
     call<Record<string, unknown>>(`/api/workspaces/${wsId}/export`,
-      { method: "POST", ...json({ target_dir: targetDir }) }),
+      { method: "POST", ...json({ target_dir: targetDir, target }) }),
 
   imagegenStatus: () => call<{ configured: boolean; provider: string; base_url: string | null; model: string | null; env_file: string; privacy: string }>("/api/imagegen/status"),
   generateHero: (wsId: string, prompt: string) =>

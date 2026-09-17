@@ -31,9 +31,10 @@ IMAGEN → ESTRUCTURA → COMPONENTES → EDICIÓN → ANÁLISIS DEL PROYECTO
 - **Visual diff**: pixel diff + SSIM + SSIM de bordes + diff por regiones +
   deltas geométricos → **Visual Fidelity Score** (independiente del
   **Functional Coverage Score**).
-- **Export seguro**: genera un proyecto React/Vite/TS nuevo en un directorio
-  vacío; jamás toca el proyecto importado; los bindings CONFIRMED contra rutas
-  se convierten en llamadas fetch reales.
+- **Export seguro**: genera un proyecto React/Vite/TS **o PySide6/Widgets**
+  nuevo en un directorio vacío; jamás toca el proyecto importado; los bindings
+  CONFIRMED contra rutas se convierten en llamadas fetch reales (React) o
+  signal/slot connections (PySide6).
 
 ## Instalación
 
@@ -62,8 +63,16 @@ python scripts/desktop_app.py
 .venv/Scripts/python.exe -m PyInstaller scripts/uibinder.spec --noconfirm --workpath build/pyinstaller
 
 # tests
-|.venv/Scripts/python.exe -m pytest tests            # backend (106 tests)
+.venv/Scripts/python.exe -m pytest tests            # backend (189 tests)
 npm test                                             # frontend (vitest, 6 tests)
+```
+
+## Tests
+
+```
+Backend:  189 passed
+Frontend: 6 passed
+Total:    195 passed
 ```
 
 ## Flujo básico (Quick Start)
@@ -78,7 +87,8 @@ npm test                                             # frontend (vitest, 6 tests
 6. **VERIFY** → orphan detector + cobertura funcional + bindings rotos.
 7. **PREVIEW** (Design / Connected).
 8. **EXPORT** a un directorio nuevo y vacío (dry-run disponible:
-   `GET /api/workspaces/{id}/export-plan`).
+   `GET /api/workspaces/{id}/export-plan`). Selecciona target:
+   **React / Vite / TypeScript** o **PySide6 / Widgets**.
 
 ## Arquitectura
 
@@ -106,6 +116,8 @@ Ver [ARCHITECTURE.md](ARCHITECTURE.md). Resumen de capas:
 - Proveedores cloud opcionales y claramente marcados (la nota de análisis
   avisa cuando una imagen se envía a un endpoint externo).
 - Funciona 100% offline (provider heurístico local).
+- Exportación **transactional**: staging directory + promote atómico.
+- Validación de paths: rechaza symlinks, directorios del sistema, raíces de unidad.
 
 ## Limitaciones conocidas (v0.1.0)
 
@@ -118,7 +130,9 @@ Ver [ARCHITECTURE.md](ARCHITECTURE.md). Resumen de capas:
 - Instalador Tauri bloqueado por falta de "C++ Build Tools" de Visual Studio
   en esta máquina (ver docs/DECISIONS.md y FEATURE REGISTRY); el ejecutable
   portable se entrega vía PyInstaller (WebView2).
+- PySide6 runtime smoke test no ejecutable en venv controlado (PySide6 no instalado).
+  Tests de compilación, sintaxis y codegen pasan.
 
 ## Versiones
 
-- App: `0.1.0` · UI schema: `1` · Migraciones DB: `1`
+- App: `0.1.0` · UI schema: `1` · Migraciones DB: `1` · Export targets: `react-vite-ts`, `pyside6-widgets`

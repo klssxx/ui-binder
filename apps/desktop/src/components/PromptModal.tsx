@@ -1,11 +1,13 @@
 /** Generic text prompt modal (window.prompt is unreliable in the Tauri webview). */
 import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
 
 export function PromptModal({ title, placeholder, initial = "", validate,
-  onSubmit, onCancel }: {
+  onSubmit, onCancel, children }: {
   title: string; placeholder?: string; initial?: string;
   validate?: (value: string) => string | null;
   onSubmit: (value: string) => void; onCancel: () => void;
+  children?: ReactNode;
 }) {
   const [value, setValue] = useState(initial);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +31,7 @@ export function PromptModal({ title, placeholder, initial = "", validate,
             if (e.key === "Escape") onCancel();
           }} />
         {error && <div className="error-note">{error}</div>}
+        {children}
         <div className="form-actions">
           <button className="btn-mini btn-primary" disabled={!!error} onClick={submit}>Aceptar</button>
           <button className="btn-mini" onClick={onCancel}>Cancelar</button>

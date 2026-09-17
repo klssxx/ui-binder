@@ -1,24 +1,51 @@
 {
-  "phase": "MULTITARGET_PYSIDE6_20260917",
-  "task": "Multi-target export system + PySide6 Widgets exporter",
-  "status": "IN_PROGRESS",
+  "phase": "PYSIDE6_HARDENING_20260917",
+  "task": "PySide6 Widgets exporter hardening + multi-target frontend",
+  "status": "COMPLETE",
   "last_good_state": {
-    "commit": "7d4f148",
+    "commit": "e83b1c6c",
     "root": "C:/Users/KLSX/Music/INTERESANTE/UIEDITION",
-    "tests": "136 pytest + 6 vitest",
+    "tests": "189 pytest + 6 vitest",
     "typecheck": "tsc exit 0",
     "build": "vite build exit 0"
   },
   "tests": {
-    "pytest": "136 passed, exit 0",
+    "pytest": "189 passed, exit 0",
     "vitest": "6 passed, exit 0"
+  },
+  "hardening_points": {
+    "nested_hierarchy": "IMPLEMENTED_AND_TESTED",
+    "binding_capability_resolution": "IMPLEMENTED_AND_TESTED",
+    "no_fake_callbacks": "IMPLEMENTED_AND_TESTED",
+    "layout_plan_used": "IMPLEMENTED_AND_TESTED",
+    "safe_identifiers": "IMPLEMENTED_AND_TESTED",
+    "safe_strings": "IMPLEMENTED_AND_TESTED",
+    "relative_geometry": "IMPLEMENTED_AND_TESTED",
+    "screen_size": "IMPLEMENTED_AND_TESTED",
+    "real_tabs": "IMPLEMENTED_AND_TESTED",
+    "image_id_assets": "IMPLEMENTED_AND_TESTED",
+    "native_partial_fallback": "IMPLEMENTED_AND_TESTED",
+    "input_output_mapping": "IMPLEMENTED_AND_TESTED",
+    "event_mapping": "IMPLEMENTED_AND_TESTED",
+    "strokes": "IMPLEMENTED_AND_TESTED",
+    "qss_tokens": "IMPLEMENTED_AND_TESTED",
+    "file_paths": "IMPLEMENTED_AND_TESTED",
+    "transactional_export": "IMPLEMENTED_AND_TESTED",
+    "determinism": "IMPLEMENTED_AND_TESTED",
+    "deep_immutability": "IMPLEMENTED_AND_TESTED",
+    "react_get": "IMPLEMENTED_AND_TESTED",
+    "react_204": "IMPLEMENTED_AND_TESTED",
+    "frontend_target_selector": "IMPLEMENTED_AND_TESTED",
+    "forward_reference_bug": "FIXED",
+    "attribute_access_bug": "FIXED",
+    "closure_capture_bug": "FIXED"
   },
   "blockers": [
     {
-      "id": "tauri-msvc",
-      "why": "Visual Studio 'C++ Build Tools' workload missing",
-      "impact": "No hay instalador Tauri; el escritorio se entrega como exe portable (WebView2)"
+      "id": "pyside6-runtime",
+      "why": "PySide6 not installed in controlled venv",
+      "impact": "Runtime smoke test cannot be executed; compile + syntax + codegen tests pass"
     }
   ],
-  "branch": "work/uibinder-multitarget-pyside6-20260917"
+  "branch": "repair/uibinder-pyside6-hardening-20260917"
 }

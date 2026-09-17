@@ -267,18 +267,37 @@ def _generate_code(document: UIDocument, bindings: list[dict[str, Any]],
         "",
     ]
     for fname, spec in api_fns.items():
-        api_lines += [
-            f"export async function {fname}(body: Record<string, unknown>) {{",
-            f'  const res = await fetch(API_BASE + {json.dumps(spec["path"])}, {{',
-            f'    method: "{spec["method"]}",',
-            '    headers: { "Content-Type": "application/json" },',
-            "    body: JSON.stringify(body),",
-            "  }});",
-            f"  if (!res.ok) throw new Error(`{spec['method']} {spec['path']} failed: ${{res.status}}`);",
-            "  return res.json();",
-            "}",
-            "",
-        ]
+        method = spec["method"]
+        if method == "GET":
+            # GET: no body, query params in URL
+            api_lines += [
+                f"export async function {fname}(params: Record<string, string> = {{}}) {{",
+                f'  const qs = new URLSearchParams(params).toString();',
+                f'  const url = API_BASE + {json.dumps(spec["path"])} + (qs ? "?" + qs : "");',
+                f'  const res = await fetch(url, {{',
+                f'    method: "GET",',
+                '    headers: { "Content-Type": "application/json" },',
+                "  });",
+                f"  if (!res.ok) throw new Error(`GET {spec['path']} failed: ${{res.status}}`);",
+                "  if (res.status === 204) return undefined;",
+                "  return res.json();",
+                "}",
+                "",
+            ]
+        else:
+            api_lines += [
+                f"export async function {fname}(body: Record<string, unknown>) {{",
+                f'  const res = await fetch(API_BASE + {json.dumps(spec["path"])}, {{',
+                f'    method: "{method}",',
+                '    headers: { "Content-Type": "application/json" },',
+                "    body: JSON.stringify(body),",
+                "  }});",
+                f"  if (!res.ok) throw new Error(`{method} {spec['path']} failed: ${{res.status}}`);",
+                "  if (res.status === 204) return undefined;",
+                "  return res.json();",
+                "}",
+                "",
+            ]
     if not api_fns:
         api_lines.append("export {};")
     api_code = "\n".join(api_lines)

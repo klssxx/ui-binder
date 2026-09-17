@@ -1,5 +1,6 @@
 /** UI Binder — application shell: toolbar / tree / canvas / inspector / dock. */
 import { useCallback, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { api } from "./api/client";
 import { BottomDock, type DockTab } from "./components/BottomDock";
 import { Canvas } from "./components/Canvas";
@@ -27,10 +28,13 @@ function Shell() {
   const [showSearch, setShowSearch] = useState(false);
   const [showWorkspaces, setShowWorkspaces] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [exportTarget, setExportTarget] = useState("react-vite-ts");
   const [prompt, setPrompt] = useState<{
     title: string; placeholder?: string; initial?: string;
     validate?: (v: string) => string | null;
     onSubmit: (v: string) => void;
+    onCancel?: () => void;
+    children?: ReactNode;
   } | null>(null);
   const [stats, setStats] = useState({
     capabilities: 0, bindings: 0, broken: 0, unbound: 0,
@@ -205,17 +209,38 @@ function Shell() {
       const ws = requireWs();
       if (!ws) return;
       setPrompt({
-        title: "EXPORTAR PROYECTO (directorio nuevo y vacío)",
+        title: "EXPORTAR PROYECTO",
         placeholder: "C:\\ruta\\nueva\\vacía",
         validate: (v) => (v.trim() ? null : "Introduce una ruta."),
-        onSubmit: (target) => {
+        onSubmit: (targetDir) => {
+          const currentTarget = exportTarget;
           setPrompt(null);
+          setExportTarget("react-vite-ts");
           void wrap("Exportar", async () => {
-            const r = await api.exportProject(ws.id, target.trim());
-            const files = (r as { files_created?: string[] }).files_created?.length ?? 0;
-            notify("info", `Exportado a ${target.trim()} — ${files} archivos`);
+            try {
+              const r = await api.exportProject(ws.id, targetDir.trim(), currentTarget);
+              const files = (r as { files_created?: unknown[] }).files_created?.length ?? 0;
+              const targetLabel = currentTarget === "pyside6-widgets" ? "PySide6" : "React";
+              notify("info", `Exportado (${targetLabel}) a ${targetDir.trim()} — ${files} archivos`);
+            } catch (e) {
+              notify("error", `Export falló: ${e instanceof Error ? e.message : String(e)}`);
+            }
           });
         },
+        onCancel: () => {
+          setPrompt(null);
+          setExportTarget("react-vite-ts");
+        },
+        children: (
+          <div style={{ marginTop: 8 }}>
+            <label style={{ display: "block", fontSize: 12, marginBottom: 4 }}>Target:</label>
+            <select value={exportTarget} onChange={(e) => setExportTarget(e.target.value)}
+              style={{ width: "100%", padding: 4 }}>
+              <option value="react-vite-ts">React / Vite / TypeScript</option>
+              <option value="pyside6-widgets">PySide6 / Widgets</option>
+            </select>
+          </div>
+        ),
       });
     },
     save: () => {
@@ -285,7 +310,8 @@ function Shell() {
       {showWorkspaces && <WorkspaceDialog onClose={() => setShowWorkspaces(false)} onOpened={openWorkspace} />}
       {prompt && <PromptModal title={prompt.title} placeholder={prompt.placeholder}
         initial={prompt.initial} validate={prompt.validate}
-        onSubmit={prompt.onSubmit} onCancel={() => setPrompt(null)} />}
+        onSubmit={prompt.onSubmit} onCancel={prompt.onCancel ?? (() => setPrompt(null))}
+        children={prompt.children} />}
     </div>
   );
 }

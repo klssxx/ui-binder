@@ -47,6 +47,9 @@ def is_safe_export_target(target: Path, source_project: Path | None) -> tuple[bo
     """Export must write to a fresh directory, never into the imported project."""
     if not target.is_absolute():
         return False, "El destino de exportación debe ser una ruta absoluta."
+    # Security: never export to a symlink (can point anywhere)
+    if target.is_symlink():
+        return False, "El destino de exportación no puede ser un enlace simbólico."
     # P0: nunca exportar a directorios del sistema ni a raíces de unidad.
     resolved = str(target.resolve()).lower()
     for forbidden in _FORBIDDEN_PROJECT_PARENTS:

@@ -219,7 +219,49 @@ def test_pyside_handles_all_canonical_types():
     exp = PySide6WidgetsExporter()
     plan = exp.plan(doc, [], [], None)
     assert plan.components_total == len(types)
-    assert plan.components_native == len(types)
+    # Honest counting: native + partial + fallback = total
+    # table, chart, modal, custom are partial (not fully native)
+    assert plan.components_native + plan.components_partial + plan.components_fallback == len(types)
+    assert plan.components_native == 17  # 21 - 4 partial
+    assert plan.components_partial == 4  # table, chart, modal, custom
+
+
+# React GET and 204 handling
+def test_react_get_no_body(sample_document, route_capability, confirmed_binding):
+    """GET bindings must not generate JSON body in fetch."""
+    from backend.export.react_export import export_react_project
+    get_cap = dict(route_capability)
+    get_cap["http_method"] = "GET"
+    get_cap["http_path"] = "/api/generate"
+    get_binding = dict(confirmed_binding)
+    get_binding["binding_id"] = "bind_get"
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "get_test"
+        export_react_project(sample_document, [get_binding], [get_cap], None, target)
+        api_ts = (target / "src" / "api.ts").read_text(encoding="utf-8")
+        # GET must not have body: JSON.stringify
+        assert "GET" in api_ts
+        # Should use URLSearchParams for query
+        assert "URLSearchParams" in api_ts
+        # Should not have body in GET fetch
+        get_fn_start = api_ts.index("export async function call_component_0004_get")
+        get_section = api_ts[get_fn_start:]
+        get_section = get_section[:get_section.index("}") + 1]
+        assert "body:" not in get_section
+        # Should handle 204
+        assert "204" in api_ts
+
+
+def test_react_204_no_json_parse(sample_document, route_capability, confirmed_binding):
+    """HTTP 204 responses must not call res.json()."""
+    from backend.export.react_export import export_react_project
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "test_204"
+        export_react_project(sample_document, [confirmed_binding], [route_capability], None, target)
+        api_ts = (target / "src" / "api.ts").read_text(encoding="utf-8")
+        # Must check for 204 before res.json()
+        assert "204" in api_ts
+        assert "return undefined" in api_ts
 
 
 # Tabs
