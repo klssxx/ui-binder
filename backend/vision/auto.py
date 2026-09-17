@@ -3,8 +3,9 @@
 Mode AUTO:
 1. Run local heuristic
 2. Calculate average confidence
-3. If confidence < threshold, escalate to remote provider
-4. Track usage and provenance
+3. If confidence < threshold, ATTEMPT remote provider
+4. If remote improves result (more components or higher confidence), SELECT remote
+5. Track usage and provenance
 """
 from __future__ import annotations
 
@@ -35,34 +36,61 @@ class AutoVisionProvider:
 
         # Step 1: Local heuristic
         local_provider = get_provider("heuristic")
-        doc, notes = local_provider.analyze(image)
+        doc_local, notes_local = local_provider.analyze(image)
 
         # Step 2: Calculate confidence
-        confidences = [c.metadata.get("confidence", 0.5) for c in doc.components]
-        avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
+        confidences = [c.metadata.get("confidence", 0.5) for c in doc_local.components]
+        avg_local_conf = sum(confidences) / len(confidences) if confidences else 0.0
 
-        # Step 3: Escalate if needed
-        fallback_used = False
-        if avg_conf < self.threshold:
+        # Step 3: Attempt remote if needed
+        remote_attempted = False
+        remote_selected = False
+        doc_remote = None
+        notes_remote = {}
+        avg_remote_conf = 0.0
+        
+        if avg_local_conf < self.threshold:
+            remote_attempted = True
             try:
                 remote = get_provider(self.remote_provider_name)
                 doc_remote, notes_remote = remote.analyze(image)
-                # Use remote result if it has more components or higher confidence
+                
+                # Calculate remote confidence
                 remote_confidences = [c.metadata.get("confidence", 0.5) for c in doc_remote.components]
-                avg_remote = sum(remote_confidences) / len(remote_confidences) if remote_confidences else 0.0
-                if avg_remote > avg_conf or len(doc_remote.components) > len(doc.components):
+                avg_remote_conf = sum(remote_confidences) / len(remote_confidences) if remote_confidences else 0.0
+                
+                # Step 4: Select remote only if it improves the result
+                if avg_remote_conf > avg_local_conf or len(doc_remote.components) > len(doc_local.components):
+                    remote_selected = True
                     doc = doc_remote
                     notes = notes_remote
-                    avg_conf = avg_remote
-                    fallback_used = True
+                    avg_conf = avg_remote_conf
+                else:
+                    doc = doc_local
+                    notes = notes_local
+                    avg_conf = avg_local_conf
             except Exception as e:
                 # Remote failed, keep local result
+                notes = notes_local
                 notes["remote_error"] = str(e)
+                doc = doc_local
+                avg_conf = avg_local_conf
+        else:
+            doc = doc_local
+            notes = notes_local
+            avg_conf = avg_local_conf
 
         latency = (time.time() - t_start) * 1000
         notes["latency_ms"] = latency
-        notes["fallback_used"] = fallback_used
-        notes["confidence_avg"] = avg_conf
+        notes["remote_attempted"] = remote_attempted
+        notes["remote_selected"] = remote_selected
+        notes["local_confidence"] = avg_local_conf
+        notes["remote_confidence"] = avg_remote_conf if remote_attempted else 0.0
+        notes["confidence_defaulted"] = False
+        
+        # Check if confidence was defaulted (no confidence in remote result)
+        if remote_attempted and avg_remote_conf == 0.5:
+            notes["confidence_defaulted"] = True
 
         return doc, notes
 
@@ -89,7 +117,7 @@ class AutoVisionProvider:
             model=notes.get("model", "heuristic+remote"),
             latency_ms=notes.get("latency_ms", 0),
             success=True,
-            fallback=notes.get("fallback_used", False),
+            fallback=notes.get("remote_selected", False),
         )
         provenance = VisionProvenance(
             provider=notes.get("provider", "auto"),
@@ -97,7 +125,8 @@ class AutoVisionProvider:
             mode="AUTO",
             privacy="local first, remote only if low confidence",
             confidence_avg=notes.get("confidence_avg", 0.0),
-            fallback_used=notes.get("fallback_used", False),
+            fallback_used=notes.get("remote_selected", False),
+            warnings=["Remote confidence defaulted" if notes.get("confidence_defaulted", False) else ""]
         )
 
         return VisionResult(components=components, usage=usage, provenance=provenance)

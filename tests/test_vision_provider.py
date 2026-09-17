@@ -92,15 +92,31 @@ def test_vision_result_contract():
 def test_auto_vision_provider_fallback():
     """AutoVisionProvider should use local when confidence is high."""
     from backend.vision.auto import AutoVisionProvider
-    from backend.vision.provider import get_provider
     from PIL import Image
     
     provider = AutoVisionProvider(threshold=0.6)
-    # Create a test image
-    img = Image.new("RGB", (100, 100), color="red")
+    # Usar una imagen real para probar
+    img = Image.open('tests/fixtures/test_ui.png')
     
     doc, notes = provider.analyze(img)
-    assert "fallback_used" in notes
+    assert "remote_attempted" in notes
+    assert "remote_selected" in notes
+    assert "local_confidence" in notes
+    assert "remote_confidence" in notes
+    assert "confidence_defaulted" in notes
+        
+    # Verificar que remote_attempted es True (porque local_confidence < threshold)
+    assert notes["remote_attempted"] is True, "remote_attempted debe ser True"
+        
+    # Verificar que remote_selected depende de si el resultado remoto mejora
+    assert isinstance(notes["remote_selected"], bool), "remote_selected debe ser booleano"
+        
+    # Verificar que local_confidence y remote_confidence son numéricos
+    assert isinstance(notes["local_confidence"], (int, float)), "local_confidence debe ser numérico"
+    assert isinstance(notes["remote_confidence"], (int, float)), "remote_confidence debe ser numérico"
+        
+    # Verificar que confidence_defaulted es False (porque el modelo devuelve confianza)
+    assert isinstance(notes["confidence_defaulted"], bool), "confidence_defaulted debe ser booleano"
 
 
 def test_budget_tracker():
