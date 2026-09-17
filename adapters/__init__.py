@@ -1,9 +1,4 @@
-"""Adapter system — extensible framework support without rewriting the core.
-
-Each adapter declares: detect(path) · inspect(path) · capabilities(path) ·
-bindings_compat(path) · validate(path). Registry-based plugin discovery:
-new adapters (Vue, Svelte, PySide6, ...) just register themselves.
-"""
+"""Adapter system — extensible framework support without rewriting the core."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -15,6 +10,7 @@ from .fastapi_adapter import FastAPIAdapter
 from .react_adapter import ReactAdapter
 from .vite_adapter import ViteAdapter
 from .tauri_adapter import TauriAdapter
+from .pyside6_adapter import PySide6Adapter
 
 _REGISTRY: dict[str, type[Adapter]] = {}
 
@@ -24,7 +20,7 @@ def register(cls: type[Adapter]) -> type[Adapter]:
     return cls
 
 
-for _cls in (PythonAdapter, FastAPIAdapter, ReactAdapter, ViteAdapter, TauriAdapter):
+for _cls in (PythonAdapter, FastAPIAdapter, ReactAdapter, ViteAdapter, TauriAdapter, PySide6Adapter):
     register(_cls)
 
 

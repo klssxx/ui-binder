@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from backend.export.base import Exporter, ExportPlan, register_exporter
 from backend.security.paths import is_safe_export_target
 from backend.schema.ui_schema import UIDocument
 
@@ -23,9 +24,11 @@ _FILES = [
 
 
 def build_export_plan(document: UIDocument, bindings: list[dict[str, Any]]) -> dict[str, Any]:
+    """Legacy-compatible plan function (target = react-vite-ts)."""
     confirmed = [b for b in bindings if b.get("status") == "CONFIRMED"]
     return {
         "mode": "export-to-new-directory",
+        "target": "react-vite-ts",
         "files_created": _FILES,
         "files_modified": [],
         "bindings_embedded": len(confirmed),
@@ -42,63 +45,106 @@ def export_react_project(document: UIDocument, bindings: list[dict[str, Any]],
                          capabilities: list[dict[str, Any]], tokens: dict[str, Any] | None,
                          target: Path, source_project: Path | None = None,
                          image_resolver=None) -> dict[str, Any]:
-    """image_resolver(image_id) -> Path | None: copia los assets referenciados
-    (styles.src = .../api/images/{id}/file) a target/assets y reescribe el src."""
-    import re as _re
-    import shutil as _shutil
-    ok, why = is_safe_export_target(target, source_project)
-    if not ok:
-        raise ValueError(why)
-    target.mkdir(parents=True, exist_ok=True)
-    (target / "src").mkdir(exist_ok=True)
+    """Legacy-compatible export function (target = react-vite-ts)."""
+    exporter = ReactViteTSExporter()
+    return exporter.export(document, bindings, capabilities, tokens,
+                           target, source_project, image_resolver)
 
-    caps_by_id = {c.get("capability_id"): c for c in capabilities}
-    for b in bindings:
-        b["_capability"] = caps_by_id.get(b.get("target_capability"), {})
 
-    css_vars = _css_vars(tokens or {})
+class ReactViteTSExporter(Exporter):
+    target_id = "react-vite-ts"
+    label = "React / Vite / TypeScript"
 
-    (target / "package.json").write_text(_PKG_JSON, encoding="utf-8")
-    (target / "vite.config.ts").write_text(_VITE_CONFIG, encoding="utf-8")
-    (target / "tsconfig.json").write_text(_TSCONFIG, encoding="utf-8")
-    (target / "index.html").write_text(_INDEX_HTML, encoding="utf-8")
-    (target / "src/main.tsx").write_text(_MAIN_TSX, encoding="utf-8")
-    (target / "src/styles.css").write_text(_styles_css(css_vars), encoding="utf-8")
+    def plan(self, document, bindings, capabilities, tokens) -> ExportPlan:
+        p = ExportPlan()
+        p.target = self.target_id
+        p.target_label = self.label
+        p.files_created = list(_FILES)
+        confirmed = [b for b in bindings if b.get("status") == "CONFIRMED"]
+        p.bindings_total = len(bindings)
+        p.bindings_realizable = len(confirmed)
+        p.bindings_unresolved = len(bindings) - len(confirmed)
+        p.components_total = len(document.components)
+        p.components_native = len(document.components)
+        p.components_fallback = 0
+        return p
 
-    api_code, app_code = _generate_code(document, bindings)
-    (target / "src/api.ts").write_text(api_code, encoding="utf-8")
-    (target / "src/App.tsx").write_text(app_code, encoding="utf-8")
-    (target / "src/bindings.json").write_text(
-        json.dumps(bindings, ensure_ascii=False, indent=2), encoding="utf-8")
+    def validate(self, document, bindings, capabilities, tokens) -> list[str]:
+        warnings = []
+        if not document.components:
+            warnings.append("No components in UI document — export will be empty.")
+        return warnings
 
-    assets_copied = 0
-    if image_resolver is not None:
-        pattern = _re.compile(r"/api/images/([A-Za-z0-9_]+)/file$")
-        for comp in document.components:
-            src = comp.styles.get("src") if isinstance(comp.styles, dict) else None
-            if not isinstance(src, str):
-                continue
-            m = pattern.search(src)
-            if not m:
-                continue
-            record_path = image_resolver(m.group(1))
-            if record_path is None or not Path(record_path).is_file():
-                continue
-            (target / "assets").mkdir(exist_ok=True)
-            filename = f"{m.group(1)}{Path(record_path).suffix}"
-            _shutil.copyfile(record_path, target / "assets" / filename)
-            comp.styles["src"] = f"./assets/{filename}"
-            assets_copied += 1
-    # regenerar el código si cambió algún src (con las rutas relativas ya resueltas)
-    if assets_copied:
-        api_code, app_code = _generate_code(document, bindings)
-        (target / "src" / "api.ts").write_text(api_code, encoding="utf-8")
-        (target / "src" / "App.tsx").write_text(app_code, encoding="utf-8")
+    def export(self, document, bindings, capabilities, tokens, target,
+               source_project=None, image_resolver=None) -> dict[str, Any]:
+        import re as _re
+        import shutil as _shutil
+        ok, why = is_safe_export_target(target, source_project)
+        if not ok:
+            raise ValueError(why)
+        target.mkdir(parents=True, exist_ok=True)
+        (target / "src").mkdir(exist_ok=True)
 
-    plan = build_export_plan(document, bindings)
-    plan["target"] = str(target)
-    plan["assets_copied"] = assets_copied
-    return plan
+        # PRESERVE INPUTS: do not mutate bindings or components
+        bindings = _detach(bindings)
+        caps_by_id = {c.get("capability_id"): c for c in capabilities}
+        for b in bindings:
+            b["_capability"] = caps_by_id.get(b.get("target_capability"), {})
+
+        css_vars = _css_vars(tokens or {})
+
+        (target / "package.json").write_text(_PKG_JSON, encoding="utf-8")
+        (target / "vite.config.ts").write_text(_VITE_CONFIG, encoding="utf-8")
+        (target / "tsconfig.json").write_text(_TSCONFIG, encoding="utf-8")
+        (target / "index.html").write_text(_INDEX_HTML, encoding="utf-8")
+        (target / "src/main.tsx").write_text(_MAIN_TSX, encoding="utf-8")
+        (target / "src/styles.css").write_text(_styles_css(css_vars), encoding="utf-8")
+
+        # Resolve assets first to get relative paths for codegen
+        import shutil as _shutil
+        asset_paths: dict[str, str] = {}
+        assets_copied = 0
+        if image_resolver is not None:
+            pattern = _re.compile(r"/api/images/([A-Za-z0-9_]+)/file$")
+            for comp in document.components:
+                styles = comp.model_dump().get("styles") if hasattr(comp, "model_dump") else comp.styles
+                src = styles.get("src") if isinstance(styles, dict) else None
+                if not isinstance(src, str):
+                    continue
+                m = pattern.search(src)
+                if not m:
+                    continue
+                image_id = m.group(1)
+                record_path = image_resolver(image_id)
+                if record_path is None or not Path(record_path).is_file():
+                    continue
+                (target / "assets").mkdir(exist_ok=True)
+                filename = f"{image_id}{Path(record_path).suffix}"
+                _shutil.copyfile(record_path, target / "assets" / filename)
+                asset_paths[comp.id] = f"./assets/{filename}"
+                assets_copied += 1
+
+        api_code, app_code = _generate_code(document, bindings, asset_paths)
+        (target / "src/api.ts").write_text(api_code, encoding="utf-8")
+        (target / "src/App.tsx").write_text(app_code, encoding="utf-8")
+        (target / "src/bindings.json").write_text(
+            json.dumps(bindings, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        plan = self.plan(document, bindings, capabilities, tokens)
+        d = plan.to_dict()
+        d["target_path"] = str(target)
+        d["assets_copied"] = assets_copied
+        # Legacy compatibility for existing API clients/tests
+        confirmed_count = sum(1 for b in bindings if b.get("status") == "CONFIRMED")
+        d["bindings_embedded"] = confirmed_count
+        d["files_modified"] = []
+        d["mode"] = "export-to-new-directory"
+        return d
+
+
+def _detach(bindings: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Shallow copy each binding dict so export doesn't mutate input."""
+    return [{**b} for b in bindings]
 
 
 # ---------------------------------------------------------------- codegen
@@ -148,7 +194,7 @@ _VOID = {"img", "hr", "input"}
 
 
 def _stroke_svg(stroke: dict[str, Any]) -> str:
-    """Un trazo → elemento SVG (mismo modelo en lienzo y export)."""
+    """Stroke -> SVG element."""
     pts = stroke.get("points", [])
     if not pts:
         return ""
@@ -180,7 +226,8 @@ def _stroke_svg(stroke: dict[str, Any]) -> str:
     return f'<line x1="{a["x"]:g}" y1="{a["y"]:g}" x2="{b["x"]:g}" y2="{b["y"]:g}" {common} />'
 
 
-def _generate_code(document: UIDocument, bindings: list[dict[str, Any]]) -> tuple[str, str]:
+def _generate_code(document: UIDocument, bindings: list[dict[str, Any]],
+                   asset_paths: dict[str, str] | None = None) -> tuple[str, str]:
     strokes_svg = [_stroke_svg(s.model_dump() if hasattr(s, "model_dump") else s)
                    for s in getattr(document, "strokes", [])]
     comps = {c.id: c.model_dump() for c in document.components}
@@ -200,7 +247,7 @@ def _generate_code(document: UIDocument, bindings: list[dict[str, Any]]) -> tupl
             if target_comp in comps and target_comp not in state_vars:
                 state_vars[target_comp] = _safe_ident(f"{comps[target_comp].get('name') or target_comp}_value")
 
-    handlers: dict[str, str] = {}  # component_id → handler name
+    handlers: dict[str, str] = {}  # component_id -> handler name
     api_fns: dict[str, dict[str, Any]] = {}
     for b in confirmed:
         cap_meta = b.get("_capability") or {}
@@ -223,10 +270,10 @@ def _generate_code(document: UIDocument, bindings: list[dict[str, Any]]) -> tupl
         api_lines += [
             f"export async function {fname}(body: Record<string, unknown>) {{",
             f'  const res = await fetch(API_BASE + {json.dumps(spec["path"])}, {{',
-            f"    method: \"{spec['method']}\",",
+            f'    method: "{spec["method"]}",',
             '    headers: { "Content-Type": "application/json" },',
             "    body: JSON.stringify(body),",
-            "  });",
+            "  }});",
             f"  if (!res.ok) throw new Error(`{spec['method']} {spec['path']} failed: ${{res.status}}`);",
             "  return res.json();",
             "}",
@@ -274,7 +321,7 @@ def _generate_code(document: UIDocument, bindings: list[dict[str, Any]]) -> tupl
             "    try {",
             f"      const res = await {fname}({{",
             *body_parts,
-            "      });",
+            "      }});",
         ]
         outputs = [om for b in confirmed if b["component_id"] == comp_id for om in b.get("output_mapping", [])]
         for om in outputs:
@@ -298,10 +345,9 @@ def _generate_code(document: UIDocument, bindings: list[dict[str, Any]]) -> tupl
         lines.append(f'      <svg className="uib-strokes" width={document.screen.width:g} height={document.screen.height:g}>')
         lines += [f"        {el}" for el in strokes_svg]
         lines.append("      </svg>")
-    lines += _render_children("screen", comps, children, handlers, state_vars, bindings, 3)
+    lines += _render_children("screen", comps, children, handlers, state_vars, bindings, 3, asset_paths)
     lines.append("    </div>")
-    lines.append("  );"
-                 )
+    lines.append("  );")
     lines.append("}")
     app_code = "\n".join(lines) + "\n"
     return api_code, app_code
@@ -309,7 +355,8 @@ def _generate_code(document: UIDocument, bindings: list[dict[str, Any]]) -> tupl
 
 def _render_children(parent_id: str, comps: dict[str, Any], children: dict[str, Any],
                      handlers: dict[str, str], state_vars: dict[str, str],
-                     bindings: list[dict[str, Any]], depth: int) -> list[str]:
+                     bindings: list[dict[str, Any]], depth: int,
+                     asset_paths: dict[str, str] | None = None) -> list[str]:
     out: list[str] = []
     pad = "  " * depth
     for cid in children.get(parent_id, []):
@@ -322,7 +369,7 @@ def _render_children(parent_id: str, comps: dict[str, Any], children: dict[str, 
         if ctype == "input":
             attrs.append('type="text"')
         if ctype == "image":
-            src = (comp.get("styles") or {}).get("src") or "placeholder.png"
+            src = (asset_paths or {}).get(cid) or (comp.get("styles") or {}).get("src") or "placeholder.png"
             attrs.append(f'src="{src}"')
             attrs.append('alt=""')
         attrs.append(f'id="{cid}"')
@@ -344,7 +391,7 @@ def _render_children(parent_id: str, comps: dict[str, Any], children: dict[str, 
             inner = f"{{{state_vars[cid]} || ''}}"
         elif comp.get("text"):
             inner = _escape(comp["text"])[1:-1]
-        kids = _render_children(cid, comps, children, handlers, state_vars, bindings, depth + 1)
+        kids = _render_children(cid, comps, children, handlers, state_vars, bindings, depth + 1, asset_paths)
         if kids:
             out.append(f"{pad}<{tag}{attr_str}>")
             out += kids
@@ -462,3 +509,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   </React.StrictMode>
 );
 """
+
+
+# Register the exporter
+register_exporter(ReactViteTSExporter)
