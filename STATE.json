@@ -1,16 +1,16 @@
 {
-  "phase": "REPAIR_HERMES_20260917",
-  "task": "Hermes forensic repair: security hardening, bug fixes, new tests",
-  "status": "COMPLETE",
+  "phase": "MULTITARGET_PYSIDE6_20260917",
+  "task": "Multi-target export system + PySide6 Widgets exporter",
+  "status": "IN_PROGRESS",
   "last_good_state": {
-    "commit": "09215f9",
+    "commit": "7d4f148",
     "root": "C:/Users/KLSX/Music/INTERESANTE/UIEDITION",
-    "tests": "106 pytest + 6 vitest + QA inline",
+    "tests": "136 pytest + 6 vitest",
     "typecheck": "tsc exit 0",
     "build": "vite build exit 0"
   },
   "tests": {
-    "pytest": "106 passed, exit 0",
+    "pytest": "136 passed, exit 0",
     "vitest": "6 passed, exit 0"
   },
   "blockers": [
@@ -20,5 +20,5 @@
       "impact": "No hay instalador Tauri; el escritorio se entrega como exe portable (WebView2)"
     }
   ],
-  "branch": "repair/uibinder-hermes-long-20260917"
+  "branch": "work/uibinder-multitarget-pyside6-20260917"
 }
