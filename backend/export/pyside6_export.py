@@ -529,13 +529,11 @@ def _render_manifest_py(document: UIDocument, bindings: list[dict[str, Any]],
     if identifiers is None:
         identifiers = _resolve_identifiers([c.id for c in document.components])
 
-    # Build the widget type mapping literal
     widget_map_literal = "\n".join(
         f'        "{ctype}": "{qt_class}",'
         for ctype, (qt_class, _) in PySide6WidgetsExporter._WIDGET_MAP.items()
     )
 
-    # Data section (lists of dicts)
     component_data_literal = "\n".join(
         f"        {comp.model_dump()}," for comp in document.components
     )
@@ -574,7 +572,6 @@ from runtime.binding_runtime import BindingRuntime
 
 def build_ui(window, root_layout, bridge):
     """Construct the widget tree and register bindings."""
-    # Data
     component_list = [
 {component_data_literal}
     ]
@@ -588,7 +585,6 @@ def build_ui(window, root_layout, bridge):
 {root_children_literal}
     ]
 
-    # Lookups
     components = {{c['id']: c for c in component_list}}
     layout_plan = {{
 {layout_plan_literal}
@@ -596,7 +592,6 @@ def build_ui(window, root_layout, bridge):
     bindings = binding_list
     capabilities_by_id = {{c['capability_id']: c for c in capability_list}}
 
-    # Widget type mapping
     _WIDGET_MAP = {{
 {widget_map_literal}
     }}
@@ -613,6 +608,85 @@ def build_ui(window, root_layout, bridge):
             'currentIndexChanged': 'currentIndexChanged',
         }}
         return mapping.get(event)
+
+    def _read_widget_value(comp_id, attr):
+        w = widget_map.get(comp_id)
+        if w is None:
+            return None
+        try:
+            if attr == "text":
+                if hasattr(w, "toPlainText"):
+                    return w.toPlainText()
+                if hasattr(w, "text"):
+                    return w.text()
+            elif attr == "checked":
+                if hasattr(w, "isChecked"):
+                    return w.isChecked()
+            elif attr == "current_text":
+                if hasattr(w, "currentText"):
+                    return w.currentText()
+            elif attr == "current_data":
+                if hasattr(w, "currentData"):
+                    return w.currentData()
+            elif attr == "value":
+                if hasattr(w, "value"):
+                    return w.value()
+        except RuntimeError:
+            return None
+        return None
+
+    def _write_widget_value(comp_id, attr, value):
+        w = widget_map.get(comp_id)
+        if w is None:
+            return
+        try:
+            text_val = "" if value is None else str(value)
+            if attr == "text":
+                if hasattr(w, "setPlainText"):
+                    w.setPlainText(text_val)
+                elif hasattr(w, "setText"):
+                    w.setText(text_val)
+            elif attr == "checked":
+                if hasattr(w, "setChecked"):
+                    w.setChecked(bool(value))
+        except RuntimeError:
+            pass
+
+    def _make_handler(binding, target_cap, source_widget):
+        input_mapping = binding.get("input_mapping") or []
+        output_mapping = binding.get("output_mapping") or []
+
+        def handler(*signal_args):
+            payload = {{}}
+            for im in input_mapping:
+                src = im.get("source", "")
+                field = im.get("target", "")
+                if "." in src:
+                    src_comp, src_attr = src.split(".", 1)
+                else:
+                    src_comp = src
+                    src_attr = "text"
+                val = _read_widget_value(src_comp, src_attr)
+                payload[field] = val
+
+            try:
+                result = bridge.call(target_cap, payload)
+            except Exception:
+                return
+
+            if result and isinstance(result, dict):
+                for om in output_mapping:
+                    src_field = om.get("source", "return")
+                    tgt = om.get("target", "")
+                    if "." in tgt:
+                        tgt_comp, tgt_attr = tgt.split(".", 1)
+                    else:
+                        tgt_comp = tgt
+                        tgt_attr = "text"
+                    val = result.get(src_field, result)
+                    _write_widget_value(tgt_comp, tgt_attr, val)
+
+        return handler
 
     def _wire_bindings(w, comp, bridge):
         comp_id = comp['id']
@@ -632,9 +706,8 @@ def build_ui(window, root_layout, bridge):
             if signal is None:
                 continue
             if hasattr(w, signal):
-                getattr(w, signal).connect(
-                    lambda cap=target_cap: bridge.call(cap)
-                )
+                h = _make_handler(binding, target_cap, w)
+                getattr(w, signal).connect(h)
 
     def _get_tab_title(comp, child_id, index):
         child = components.get(child_id, {{}})
