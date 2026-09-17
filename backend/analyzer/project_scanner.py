@@ -30,7 +30,7 @@ def scan_project(root: Path) -> dict[str, Any]:
         rel = path.relative_to(root).as_posix()
         if path.is_dir():
             if path.name in config.SCAN_IGNORED_DIRS:
-                break  # rglob prunes nothing; skip via name check below
+                continue
             continue
         parts = set(rel.split("/"))
         if parts & config.SCAN_IGNORED_DIRS:
