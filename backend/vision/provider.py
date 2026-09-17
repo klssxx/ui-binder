@@ -3,6 +3,11 @@
 Combination model (directive §9):
   AUTO DETECTION (heuristic / remote) + MANUAL CORRECTION (editor) + OPTIONAL AI.
 The core works fully offline with LocalHeuristicVisionProvider.
+
+Modes:
+  LOCAL:  heuristic only, no image leaves the machine.
+  REMOTE: external provider only.
+  AUTO:   local first, escalate to remote if confidence < threshold.
 """
 from __future__ import annotations
 
@@ -12,6 +17,7 @@ from typing import Any, Optional
 from PIL import Image
 
 from backend.schema.ui_schema import UIDocument
+from backend.vision.contract import VisionResult
 
 
 class VisionProvider(ABC):
@@ -20,6 +26,28 @@ class VisionProvider(ABC):
     @abstractmethod
     def analyze(self, image: Image.Image) -> tuple[UIDocument, dict[str, Any]]:
         """Produce a UI AST + analysis notes from a screenshot."""
+
+    def analyze_rich(self, image: Image.Image) -> VisionResult:
+        """Full analysis with rich contract. Default wraps analyze()."""
+        doc, notes = self.analyze(image)
+        from backend.vision.contract import DetectedComponent, VisionUsage, VisionProvenance
+        components = []
+        for c in doc.components:
+            dc = DetectedComponent(
+                type=c.type,
+                bbox={"x": c.bbox.x, "y": c.bbox.y, "width": c.bbox.width, "height": c.bbox.height},
+                text=c.text,
+                confidence=c.metadata.get("confidence", 0.5),
+            )
+            components.append(dc)
+        usage = VisionUsage(provider=notes.get("provider", self.name), model=notes.get("model", ""))
+        provenance = VisionProvenance(
+            provider=notes.get("provider", self.name),
+            model=notes.get("model", ""),
+            mode="LOCAL",
+            privacy="no data leaves the machine",
+        )
+        return VisionResult(components=components, usage=usage, provenance=provenance)
 
 
 _REGISTRY: dict[str, type[VisionProvider]] = {}
@@ -45,4 +73,11 @@ def get_provider(name: Optional[str] = None) -> VisionProvider:
     if key == "remote":
         from .remote import OpenAICompatibleVisionProvider
         return OpenAICompatibleVisionProvider()
+    if key == "mistral":
+        from .remote import OpenAICompatibleVisionProvider
+        # Mistral uses the same OpenAI-compatible interface
+        return OpenAICompatibleVisionProvider()
+    if key == "auto":
+        from .auto import AutoVisionProvider
+        return AutoVisionProvider()
     return _REGISTRY["heuristic"]()

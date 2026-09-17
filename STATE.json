@@ -1,51 +1,29 @@
 {
-  "phase": "PYSIDE6_HARDENING_20260917",
-  "task": "PySide6 Widgets exporter hardening + multi-target frontend",
-  "status": "COMPLETE",
+  "phase": "VISION_MISTRAL_20260917",
+  "task": "Vision provider architecture with Mistral support",
+  "status": "IN_PROGRESS",
   "last_good_state": {
-    "commit": "e83b1c6c",
+    "commit": "15bf20b94dad50c755ff5e69932c67e71d550ecc",
     "root": "C:/Users/KLSX/Music/INTERESANTE/UIEDITION",
-    "tests": "189 pytest + 6 vitest",
+    "tests": "204 pytest + 6 vitest",
     "typecheck": "tsc exit 0",
     "build": "vite build exit 0"
   },
   "tests": {
-    "pytest": "189 passed, exit 0",
+    "pytest": "204 passed, exit 0",
     "vitest": "6 passed, exit 0"
   },
-  "hardening_points": {
-    "nested_hierarchy": "IMPLEMENTED_AND_TESTED",
-    "binding_capability_resolution": "IMPLEMENTED_AND_TESTED",
-    "no_fake_callbacks": "IMPLEMENTED_AND_TESTED",
-    "layout_plan_used": "IMPLEMENTED_AND_TESTED",
-    "safe_identifiers": "IMPLEMENTED_AND_TESTED",
-    "safe_strings": "IMPLEMENTED_AND_TESTED",
-    "relative_geometry": "IMPLEMENTED_AND_TESTED",
-    "screen_size": "IMPLEMENTED_AND_TESTED",
-    "real_tabs": "IMPLEMENTED_AND_TESTED",
-    "image_id_assets": "IMPLEMENTED_AND_TESTED",
-    "native_partial_fallback": "IMPLEMENTED_AND_TESTED",
-    "input_output_mapping": "IMPLEMENTED_AND_TESTED",
-    "event_mapping": "IMPLEMENTED_AND_TESTED",
-    "strokes": "IMPLEMENTED_AND_TESTED",
-    "qss_tokens": "IMPLEMENTED_AND_TESTED",
-    "file_paths": "IMPLEMENTED_AND_TESTED",
-    "transactional_export": "IMPLEMENTED_AND_TESTED",
-    "determinism": "IMPLEMENTED_AND_TESTED",
-    "deep_immutability": "IMPLEMENTED_AND_TESTED",
-    "react_get": "IMPLEMENTED_AND_TESTED",
-    "react_204": "IMPLEMENTED_AND_TESTED",
-    "frontend_target_selector": "IMPLEMENTED_AND_TESTED",
-    "forward_reference_bug": "FIXED",
-    "attribute_access_bug": "FIXED",
-    "closure_capture_bug": "FIXED"
+  "vision": {
+    "local": "OpenCV + OCR (existing)",
+    "remote": "OpenAI-compatible / Mistral (extended)",
+    "auto": "Local first, escalate on low confidence",
+    "modes": ["LOCAL", "REMOTE", "AUTO"],
+    "budget_usd": 2.0
   },
-  "blockers": [
-    {
-      "id": "pyside6-runtime",
-      "why": "PySide6 not installed in controlled venv",
-      "impact": "Runtime smoke test cannot be executed; compile + syntax + codegen tests pass"
-    }
-  ],
-  "branch": "repair/uibinder-pyside6-hardening-20260917"
+  "hardening_complete": {
+    "commit": "15bf20b94dad50c755ff5e69932c67e71d550ecc",
+    "branch": "repair/uibinder-pyside6-hardening-20260917"
+  },
+  "blockers": [],
+  "branch": "work/uibinder-vision-mistral-20260917"
 }
