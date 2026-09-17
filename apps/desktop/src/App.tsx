@@ -163,7 +163,9 @@ function Shell() {
       const ws = requireWs();
       if (!ws) return;
       void wrap("Analizar UI", async () => {
-        const r = await api.analyzeUi(ws.id, "heuristic");
+        // Get the selected provider from localStorage
+        const provider = localStorage.getItem("uibinder.visionProvider") || "heuristic";
+        const r = await api.analyzeUi(ws.id, provider);
         const doc = await api.getUi(ws.id);
         editor.loadDocument(doc);
         notify("info", `${r.components} componentes detectados — corrige y edita en el inspector`);

@@ -12,16 +12,17 @@ export function VisionProviderSelector() {
   const [provider, setProvider] = useState<string | null>(null);
   const [info, setInfo] = useState<VisionProviderInfo | null>(null);
 
+  // Load saved provider from localStorage
   useEffect(() => {
+    const savedProvider = localStorage.getItem("uibinder.visionProvider");
     api.health().then((h) => {
       setInfo(h.vision_provider);
-      setProvider(h.vision_provider.configured);
+      setProvider(savedProvider || h.vision_provider.configured || "heuristic");
     }).catch(() => {});
   }, []);
 
-  const handleChange = async (newProvider: string) => {
-    // In a real implementation, this would update a setting
-    // For now, just visual feedback
+  const handleChange = (newProvider: string) => {
+    localStorage.setItem("uibinder.visionProvider", newProvider);
     setProvider(newProvider);
   };
 
@@ -36,15 +37,21 @@ export function VisionProviderSelector() {
             key={p}
             className={`vision-btn ${provider === p ? "active" : ""}`}
             onClick={() => handleChange(p)}
-            title={p === "heuristic" ? "Local (sin red)" : p}
+            title={p === "heuristic" ? "Local (sin red)" : p === "remote" ? "Remoto (requiere configuración)" : "Automático (local primero)"}
+            disabled={p === "remote" && !info.remote_configured}
           >
-            {p === "heuristic" ? "Local" : p}
+            {p === "heuristic" ? "Local" : p === "remote" ? "Remoto" : "Auto"}
           </button>
         ))}
       </div>
       {info.remote_configured && (
         <span className="vision-privacy" title="Proveedor remoto configurado">
           ☁️
+        </span>
+      )}
+      {!info.remote_configured && (
+        <span className="vision-warning" title="Proveedor remoto no configurado">
+          ⚠️ Configura UIBINDER_VISION_* en .env
         </span>
       )}
     </div>
