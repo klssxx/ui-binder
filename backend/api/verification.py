@@ -104,8 +104,8 @@ async def visual_diff(ws_id: str, rendered: UploadFile = File(...),
             heuristic_doc, _ = LocalHeuristicVisionProvider().analyze(rendered_img)
             rendered_regions = [{"id": c.id, "type": c.type, "bbox": c.model_dump()["bbox"]}
                                 for c in heuristic_doc.components]
-        except Exception:
-            pass
+        except Exception as exc:  # best-effort: never fail the diff because of region detection
+            log(ws_id, "WARNING", "rendered-side region detection skipped", error=str(exc))
         metrics = compare_images(rimg, rendered_img, regions=regions,
                                  rendered_regions=rendered_regions)
 

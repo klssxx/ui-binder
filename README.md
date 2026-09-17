@@ -62,7 +62,7 @@ python scripts/desktop_app.py
 .venv/Scripts/python.exe -m PyInstaller scripts/uibinder.spec --noconfirm --workpath build/pyinstaller
 
 # tests
-.venv/Scripts/python.exe -m pytest tests            # backend (74 tests)
+|.venv/Scripts/python.exe -m pytest tests            # backend (106 tests)
 npm test                                             # frontend (vitest, 6 tests)
 ```
 
